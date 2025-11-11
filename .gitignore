@@ -1,0 +1,9 @@
+# Python 가상 환경 (cvenv)
+cvenv/
+
+# Python 캐시
+__pycache__/
+*.pyc
+
+# OS 파일
+.DS_Store
