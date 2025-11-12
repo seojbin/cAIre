@@ -53,7 +53,7 @@ print("훈련 데이터 증강")
 xauglist, ytrain = augmentdata( 
     xtrainorig, 
     ytrainorig, 
-    n=naugment # 1(원본) + 9(증강) = 10배
+    n=naugment 
 )
 
 xtestlist = xtestorig
@@ -111,7 +111,10 @@ history = model.fit(
     callbacks=[earlystopping],
     verbose=2
 )
-
+#모델 저장
+MODEL_SAVE_PATH = 'lstm.keras'
+model.save(MODEL_SAVE_PATH)
+print(f"\n모델 저장 완료: {MODEL_SAVE_PATH}")
 print("모델 평가")
 loss, accuracy = model.evaluate(xtest, ytest)
 print(f"\n테스트 손실 (Loss): {loss:.4f}")
