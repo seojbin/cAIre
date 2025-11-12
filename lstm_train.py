@@ -20,7 +20,7 @@ except ImportError:
     print("전처리파일 없음")
     exit()
 
-basepath = './'
+basepath = './data/'
 naugment = 9
 testsize = 0.2
 randomstate = 42
