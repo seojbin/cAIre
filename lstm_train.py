@@ -124,10 +124,8 @@ ypredprobs = model.predict(xtest)
 ypred = np.argmax(ypredprobs, axis=1)
 
 classnames = list(label.keys())
-print("\n[ Classification Report ]")
 print(classification_report(ytest, ypred, target_names=classnames))
 
-print("\n[ Confusion Matrix ]")
 cm = confusion_matrix(ytest, ypred)
 plt.figure(figsize=(8, 6))
 sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
