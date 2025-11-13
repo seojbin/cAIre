@@ -5,35 +5,42 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import tensorflow as tf
 from tensorflow.keras.models import load_model
+import sys
+import os
 
+current = os.path.abspath(__file__)
+script_dir = os.path.dirname(current)
+project_root = os.path.dirname(script_dir)
+
+sys.path.append(project_root)
 try:
-    from preprocess import load, pad, label
+    from postprocess.preprocess import load, pad, label
 except ImportError:
     print("전처리파일 없음")
     exit()
 
-model = 'lstm.keras' # 모델 경로
-newdata = './newdata/'  # 추론할 데이터 경로
+model = os.path.join(script_dir, 'lstm.keras') #학습파일
+newdata = os.path.join(project_root, 'newdata')
 n = len(label)
 classnames = list(label.keys())
 
 try:
     model = load_model(model)
 except IOError:
-    print(f"{MODEL_PATH}에 모델 없음")
+    print(f"{model}에 모델 없음")
     exit()
 
 # 데이터 로드
-xnew_list, ytrue = load(newdata)
+xlist, ytrue = load(newdata)
 
-if len(xnew_list) == 0:
+if len(xlist) == 0:
     print("로드안됨")
     exit()
 
 #새로운 데이터를 패딩
-xpadded = pad(xnew_list)
+xpadded = pad(xlist)
 
-print(f"총 {len(xnew_padded)}개의 새 데이터 추론 시작...")
+print(f"총 {len(xpadded)}개의 새 데이터 추론 시작...")
 
 ypredprobs = model.predict(xpadded)
 ypred = np.argmax(ypredprobs, axis=1) # 확률이 가장 높은 클래스 인덱스 추출

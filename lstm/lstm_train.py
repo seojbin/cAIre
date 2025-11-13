@@ -8,19 +8,21 @@ import tensorflow as tf
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense, Dropout, Masking
 from tensorflow.keras.callbacks import EarlyStopping
+import sys
+import os
 
+current = os.path.abspath(__file__)
+script_dir = os.path.dirname(current)
+project_root = os.path.dirname(script_dir)
+
+sys.path.append(project_root)
 try:
-    from preprocess import (
-        load, 
-        augmentdata, 
-        pad,
-        label
-    )
+    from postprocess.preprocess import (load, augmentdata, pad,label)
 except ImportError:
     print("전처리파일 없음")
     exit()
 
-basepath = './data/'
+data = os.path.join(project_root, 'data')
 naugment = 9
 testsize = 0.2
 randomstate = 42
@@ -30,8 +32,7 @@ epochs = 100
 batchsize = 32
 nclasses = len(label)
 
-print("데이터 전처리")
-xorig, yorig = load(basepath)
+xorig, yorig = load(data)
 
 if len(xorig) == 0:
     print("로드안됨")
@@ -49,7 +50,6 @@ xtrainorig, xtestorig, ytrainorig, ytest = train_test_split(
 print(f"원본 훈련셋: {len(xtrainorig)}개, 원본 테스트셋: {len(xtestorig)}개")
 
 # 훈련용데이터 증강
-print("훈련 데이터 증강")
 xauglist, ytrain = augmentdata( 
     xtrainorig, 
     ytrainorig, 
