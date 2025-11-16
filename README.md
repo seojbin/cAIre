@@ -19,10 +19,15 @@ decision tree(단순 결정나무 모델)
 pip install tensorflow pandas numpy scikit-learn seaborn matplotlib tslearn
 
 #데이터 증강과 전처리
+
 s로 시작하는 데이터는 정지 상태를 나타내므로 움직임을 측정하는 r 데이터만 사용하도록 전처리, 폴더 단위로 라벨링
+
 노이즈추가 : 각 좌표에 작은 정규분포 노이즈 추가
+
 스케일링 : 전체좌표를 0.9-1.1배 비율로 스케일링
+
 translation : 전체궤적 좌표를 방향성 유지한 상태에서 미세 이동
+
 스케일링과 translation의 경우 대각선 예측은 좋아지지만, 원형 예측이 훼손되는 문제 발생.
 
 #피쳐 추출기 - 
