@@ -3,6 +3,7 @@ import glob
 import pandas as pd
 import numpy as np
 from tensorflow.keras.preprocessing.sequence import pad_sequences
+import io
 # 클래스와 라벨을 매핑
 label = {
     'circle': 0,
@@ -20,31 +21,37 @@ def parse(path):
     #단일 궤적 파일 to (N, 3) 형태의 array로 파싱
 
     try:
-        df = pd.read_csv(path, header=None, engine='python', on_bad_lines='skip')
-        # r로 시작하는 행만
-        if 0 in df.columns:
-            df = df[df[0] == 'r'].copy()
-        else:
-            print(f"{path}에 0번 열이 없음")
-            return None
+        # 파일을 수동으로 읽어 s 행을 먼저 제거(stop은 궤적에 불필요함)
+        with open(path, 'r', encoding='utf-8') as f:
+            lines = f.readlines()
+    
+        # r로 시작하는 행만 필터링
+        r_lines = [line for line in lines if line.startswith('r,')]
         
-        # 7번째 열 NaN 값 행 제거
+        if not r_lines:
+            print(f"{path}에 'r'로 시작하는 데이터 행이 없음")
+            return None
+            
+        # r 행들만 문자열로 다시 합쳐서 pandas로 읽기
+        cleaned_data = "".join(r_lines)
+        df = pd.read_csv(io.StringIO(cleaned_data), header=None, engine='python')
+
+        #7번째 열(index 6)이 존재하는지 확인
+        if index not in df.columns:
+            print(f"{path}에 {index}열이 없음 (파일 형식 오류)")
+            return None
+    
+        #7번째 열 NaN 값 행 제거
         df.dropna(subset=[index], inplace=True)
         
         if df.empty:
             print(f"{path}에서 값이 NaN")
             return None
             
-        #7번째 열존재 확인
-        if index not in df.columns:
-            print(f"{path}에 {index}열이 없음")
-            return None
-
         # X/Y/Z 분리하여 리스트로
         series = df[index].astype(str).apply(lambda s: s.split('/'))
         
         # 리스트를 array로
-
         array = np.array(series.tolist(), dtype=float)
 
         if array.shape[1] != 3:
@@ -55,7 +62,7 @@ def parse(path):
         
     except Exception as e:
         print(f"{path} 처리 중 문제 발생 - {e}")
-        return None
+        return None         
 
 def load(base):
     #모든 궤적 파일(.txt)파싱, 라벨 할당
@@ -86,18 +93,26 @@ def load(base):
     return otraject, np.array(olabels)
 
 
-def augment(traj, strength=1.0):
+def augment(traj, strength=1.0,scale_r=(0.9, 1.1), offset_mm=1.0):
 
-    #단일 궤적에 Jittering(노이즈 추가)
-
+    # 여러 증강 기법을 무작위로 적용
     newtraj = traj.copy()
     
-    # Jittering-(Timesteps, 3) 형태의 정규분포 노이즈 생성
+    # 노이즈 추가 - 항상 적용
     noise = np.random.normal(loc=0.0, scale=strength, size=newtraj.shape)
     newtraj += noise
     
-    # 추가 가능- Scaling, Rotation 등
-    
+    # 크기 조절 - 50% 확률로 적용
+    '''if np.random.rand() > 0.5:
+        scale = np.random.uniform(scale_r[0], scale_r[1])
+        newtraj *= scale
+            
+    #평행 이동 - 50% 확률로 적용
+    if np.random.rand() > 0.5:
+        # -5mm ~ +5mm 사이에서 각 축별로 랜덤한 값 선택
+        offset = np.random.uniform(-offset_mm, offset_mm, size=3) 
+        newtraj += offset # 모든 타임스텝에 동일한 offset 적용'''
+        
     return newtraj
 
 def augmentdata(origx, origy, n=10):
@@ -116,7 +131,7 @@ def augmentdata(origx, origy, n=10):
         
         # 2. 증강된 데이터 추가
         for _ in range(n):
-            newtraj = augment(traj, strength=1.0) # 1mm 이내
+            newtraj = augment(traj, strength=1.0,scale_r=(0.9, 1.1), offset_mm=1.0)
             augx.append(newtraj)
             augy.append(label)
             

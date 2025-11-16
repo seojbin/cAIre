@@ -9,8 +9,10 @@ def extractfeatures(trajectories):
         'X_std', 'Y_std', 'Z_std',
         'X_min', 'Y_min', 'Z_min',
         'X_max', 'Y_max', 'Z_max',
-        'total_length', 'total_displacement',
-        'length_disp_ratio'
+        'length', 'disp', 'length_disp',
+        'diff_X', 'diff_Y', 'diff_Z',
+        'range_X', 'range_Y', 'range_Z',
+        'ratio'
     ]
 
     for traj in trajectories:
@@ -20,28 +22,46 @@ def extractfeatures(trajectories):
         mins = np.min(traj, axis=0)
         maxs = np.max(traj, axis=0)
         
-        # 궤적의 전체 길이 (모든 이동 거리 합)
-        step_distances = np.linalg.norm(np.diff(traj, axis=0), axis=1)
-        total_length = np.sum(step_distances)
+        # 궤적의 전체 길이
+        dist = np.linalg.norm(np.diff(traj, axis=0), axis=1)
+        length = np.sum(dist)
 
-        # 궤적의 총 변위 (시작점과 끝점 사이의 거리)
-        start_point = traj[0]
-        end_point = traj[-1]
-        total_displacement = np.linalg.norm(end_point - start_point)
+        # 궤적의 총 변위
+        start = traj[0]
+        end = traj[-1]
+        disp = np.linalg.norm(end - start)
         
         # 변위 대비 길이 비율
-        # (0으로 나누기 방지)
-        if total_displacement < 1e-6:
-            length_disp_ratio = total_length
+        if disp < 1e-6:
+            length_disp = length
         else:
-            length_disp_ratio = total_length / total_displacement
+            length_disp = length / disp
 
-        # 모든 특성 결합
+        # 시작-끝 지점의 축별 차이
+        diff = end - start
+        
+        #바운딩 박스 크기
+        bounding_box = maxs - mins
+        
+        #PCA 주성분 분석
+        ratio = 0.0
+        if len(traj) > 2:
+            try:
+                pca = PCA(n_components=1)
+                pca.fit(traj)
+                # 1.0에 가까우면 직선, 0.5에 가까우면 원
+                ratio = pca.explained_variance_ratio_[0]
+            except Exception:
+                ratio = 0.0 
+
+        # 모든 특성을 하나의 리스트로 결합
         features = np.concatenate([
             means, stds, mins, maxs,
-            [total_length, total_displacement, length_disp_ratio]
+            [length, disp, length_disp],
+            diff,
+            bounding_box,
+            [ratio]
         ])
         feature_list.append(features)
         
-    # (샘플 수, 15) 형태의 2D 배열 반환
     return np.array(feature_list), feature_names
