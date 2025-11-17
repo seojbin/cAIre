@@ -101,9 +101,9 @@ def pad_fixed(list_, maxlen=None):
 
 if __name__ == "__main__":
     
-    data_train = './'  # 훈련 데이터 (현재 디렉토리 기준)
-    data_test = './'   # 테스트 데이터 (현재 디렉토리 기준)
-    model_save_path = './cnn1d.keras'  # 모델 저장 (현재 디렉토리)
+    data_train = './'  # 훈련 데이터 
+    data_test = './'   # 테스트 데이터 
+    model_save_path = './cnn1d.keras'  # 모델 저장 
     
     naugment = 9
     testsize = 0.2
