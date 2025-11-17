@@ -85,7 +85,7 @@ nclasses = len(label)
 classnames = list(label.keys())
 
 # ===============================
-# 6️⃣ 테스트 데이터 로드 & 전처리
+# 테스트 데이터 로드 & 전처리
 # ===============================
 xlist, ytrue = load(data_test)
 if len(xlist) == 0:
@@ -94,7 +94,7 @@ if len(xlist) == 0:
 xpadded = pad_fixed(xlist)  # 고정 maxlen 패딩
 
 # ===============================
-# 7️⃣ 예측 실행
+# 예측 실행
 # ===============================
 ypredprobs = model.predict(xpadded)
 ypred = np.argmax(ypredprobs, axis=1)
@@ -109,7 +109,7 @@ for i in range(len(predicted_labels)):
     print(f"샘플 {i+1}: 예측={predicted_labels[i]}, 실제={true_labels[i]}")
 
 # ===============================
-# 8️⃣ 성능 평가
+# 성능 평가
 # ===============================
 if len(ytrue) > 0:
     print("\n분류 보고서:")
@@ -132,7 +132,7 @@ else:
     print("테스트 라벨 없음 - 예측만 출력")
 
 # ===============================
-# 9️⃣ 단일 샘플 테스트 (옵션: 새 .txt 파일 업로드 후 테스트)
+# 단일 샘플 테스트 (옵션: 새 .txt 파일 업로드 후 테스트)
 # ===============================
 # 예: 새 파일 경로 (Data#2에 test_sample.txt 업로드 가정)
 # single_path = os.path.join(project_root, 'Data#2/circle/test_sample.txt')
