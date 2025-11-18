@@ -7,7 +7,7 @@ import joblib
 import sys
 import os
 from sklearn.tree import DecisionTreeClassifier 
-# [신규] k-NN과 StandardScaler 임포트
+from sklearn.decomposition import PCA
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.preprocessing import StandardScaler
 from tslearn.neighbors import KNeighborsTimeSeriesClassifier
@@ -28,7 +28,7 @@ except ImportError:
     exit()
 
 class HybridClassifier:
-    def __init__(self,maxneighbor1=5,maxdepthsimple=3,maxdepthcomplex=3,maxneighbor2=3,randomstate=42):
+    def __init__(self,maxneighbor1=10,maxdepthsimple=3,maxdepthcomplex=3,maxneighbor2=3,randomstate=42):
         self.randomstate = randomstate
         
         self.scaler = StandardScaler()
@@ -47,13 +47,16 @@ class HybridClassifier:
         self.complexlabels = [self.cid, self.cdl, self.cdr]
         self.simplelabels = [self.cho, self.cve]
         self.diagonallabels = [self.cdl, self.cdr]
-
+        self.drop_indices_model1 = []
+    def _filter_features(self, x):
+        return np.delete(x, self.drop_indices_model1, axis=1)
     def fit(self, x, y, xorig):
         pass # 추론 시 불필요
 
     def predict(self, x, xorig):
         
-        x_scaled = self.scaler.transform(x) # 스케일링 적용
+        x_filtered = self._filter_features(x) #model1에선 ratio, 절대위치 제거!!
+        x_scaled = self.scaler.transform(x_filtered)
         
         ypred1 = self.model1.predict(x_scaled) # k-NN으로 예측
         ypred = np.zeros(len(x), dtype=int) 
@@ -99,7 +102,7 @@ class HybridClassifier:
         rules4 = f"KNeighborsTimeSeriesClassifier(n_neighbors={self.model4.n_neighbors}, metric='{self.model4.metric}')"
         return rules1, rules2, rules3, rules4
 
-modelpath = os.path.join(script_dir, 'decision_tree_add_knn.joblib')
+modelpath = os.path.join(script_dir, 'decision_tree_add_knn2.joblib')
 newdata = os.path.join(project_root, 'newdata') 
 
 classnames = list(label.keys())
@@ -128,8 +131,9 @@ true_labels = [classnames[t] for t in ytrue]
 
 try:
     #설명 라벨 준비
-    xnewfeatures_scaled = model.scaler.transform(xnewfeatures) # 스케일링
-    model1_train_internal_labels = model.model1._y # [0, 1, 0...]
+    xnewfeatures_filtered = model._filter_features(xnewfeatures) 
+    xnewfeatures_scaled = model.scaler.transform(xnewfeatures_filtered) # 스케일링
+    model1_train_internal_labels = model.model1._y
     model1_label_map = {0: 'simple', 1: 'complex'}
     model1_train_classnames = [model1_label_map[l] for l in model1_train_internal_labels]
     dtw_train_internal_labels = model.model4._y 
@@ -142,16 +146,16 @@ except Exception as e:
 for i in range(len(predicted_labels)):
     print(f"샘플 {i+1}: 예측={predicted_labels[i]}, 실제={true_labels[i]}")
     try:
-        distances, indices = model.model1.kneighbors([xnewfeatures_scaled[i]])
-        neighbor_indices = indices[0]
-        neighbor_labels = [model1_train_classnames[idx] for idx in neighbor_indices]
-        model1_pred_name = model1_label_map[model.model1.predict([xnewfeatures_scaled[i]])[0]]
-        
+        x_filtered_i = model._filter_features(xnewfeatures[i].reshape(1, -1))
+        x_scaled_i = model.scaler.transform(x_filtered_i)
+        distances, indices = model.model1.kneighbors(x_scaled_i)
+        neighbor_labels = [model1_train_classnames[idx] for idx in indices[0]]
+        pred_idx = model.model1.predict(x_scaled_i)[0]
+        model1_pred_name = model1_label_map.get(pred_idx, "Unknown")
         print(f"  k-NN: 예측={model1_pred_name}, 이웃={neighbor_labels}")
 
     except Exception as e:
         print(f"  k-NN 설명 중 오류: {e}")
-    #DTW로 예측된 경우(DL or DR), 왜 그렇게 예측했는지 근거(이웃) 출력
     if predicted_labels[i] in ['diagonal_left', 'diagonal_right']:
         try:
             sample_orig_3d = [xnew[i]]
@@ -166,6 +170,67 @@ for i in range(len(predicted_labels)):
         except Exception as e:
             print(f"  DTW 설명 중 오류: {e}")
 
+#시각화파트
+def visualize_model1(model, xtestfeatures, ytestoriginal):
+    # 1. 훈련 데이터 - k-NN은 Simple/Complex 라벨만
+    xtrain = model.model1._fit_X
+    ytrain = model.model1._y 
+    
+    # PCA
+    pca = PCA(n_components=2)
+    xtrainpca = pca.fit_transform(xtrain)
+    xtest_filtered = model._filter_features(xtestfeatures)
+    xtestpca = pca.transform(model.scaler.transform(xtest_filtered))
+    plt.figure(figsize=(12, 8))
+    
+    # 훈련 데이터 그리기
+    plt.scatter(xtrainpca[ytrain==0, 0], xtrainpca[ytrain==0, 1], c='lightgray', marker='.', alpha=0.3, label='Train: Simple Area')
+    plt.scatter(xtrainpca[ytrain==1, 0], xtrainpca[ytrain==1, 1], c='mistyrose', marker='.', alpha=0.3, label='Train: Complex Area')
+    # 테스트 데이터
+    colordict = {
+        label['horizontal']: 'blue',    # Simple
+        label['vertical']: 'cyan',      # Simple
+        label['circle']: 'red',         # Complex
+        label['diagonal_left']: 'orange', # Complex
+        label['diagonal_right']: 'gold'   # Complex
+    }
+    xtest_filtered_all = model._filter_features(xtestfeatures)
+    ypredbinary = model.model1.predict(model.scaler.transform(xtest_filtered_all))
+    
+    # 클래스별루프 
+    for classname, classid in label.items():
+        # 해당 클래스 인덱스 찾기
+        idxs = np.where(ytestoriginal == classid)[0]
+        if len(idxs) == 0: continue
+        
+        # 정답 여부 확인
+        # horizontal/vertical ypredbinary가 0 정답
+        # 나머지 ypredbinary가 1 정답
+        is_simple = classid in [label['horizontal'], label['vertical']]
+        target_binary = 0 if is_simple else 1
+        
+        correct_idxs = idxs[ypredbinary[idxs] == target_binary]
+        wrong_idxs = idxs[ypredbinary[idxs] != target_binary]
+        
+        # 정답
+        if len(correct_idxs) > 0:
+            plt.scatter(xtestpca[correct_idxs, 0], xtestpca[correct_idxs, 1], 
+                        c=colordict[classid], marker='o', s=100, edgecolor='black', 
+                        label=f'Test: {classname} (Correct)')
+            
+        # 오답
+        if len(wrong_idxs) > 0:
+            plt.scatter(xtestpca[wrong_idxs, 0], xtestpca[wrong_idxs, 1], 
+                        c=colordict[classid], marker='X', s=200, edgecolor='black', linewidth=2,
+                        label=f'Test: {classname} (Wrong)')
+    plt.title('Simple vs Complex (PCA)')
+    plt.xlabel('PC 1')
+    plt.ylabel('PC 2')
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+    plt.show()
+
+
 if len(ytrue) > 0:
     print(classification_report(ytrue, ypred, target_names=classnames, zero_division=0))
     cm = confusion_matrix(ytrue, ypred)
@@ -176,3 +241,7 @@ if len(ytrue) > 0:
     plt.ylabel('True Label')
     plt.xlabel('Predicted Label')
     plt.show()
+    try:
+        visualize_model1(model, xnewfeatures, ytrue)
+    except Exception as e:
+        print(f"시각화 중 오류 발생: {e}")

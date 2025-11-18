@@ -103,7 +103,7 @@ def augment(traj, strength=1.0,scale_r=(0.9, 1.1), offset_mm=1.0):
     newtraj += noise
     
     # 크기 조절 - 50% 확률로 적용
-    '''if np.random.rand() > 0.5:
+    if np.random.rand() > 0.5:
         scale = np.random.uniform(scale_r[0], scale_r[1])
         newtraj *= scale
             
@@ -111,7 +111,7 @@ def augment(traj, strength=1.0,scale_r=(0.9, 1.1), offset_mm=1.0):
     if np.random.rand() > 0.5:
         # -5mm ~ +5mm 사이에서 각 축별로 랜덤한 값 선택
         offset = np.random.uniform(-offset_mm, offset_mm, size=3) 
-        newtraj += offset # 모든 타임스텝에 동일한 offset 적용'''
+        newtraj += offset # 모든 타임스텝에 동일한 offset 적용
         
     return newtraj
 

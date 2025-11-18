@@ -9,12 +9,8 @@ def extractfeatures(trajectories):
     
     feature_list = []
     feature_names = [
-        'X_mean', 'Y_mean', 'Z_mean',
         'X_std', 'Y_std', 'Z_std',
-        'X_min', 'Y_min', 'Z_min',
-        'X_max', 'Y_max', 'Z_max',
         'length', 'disp', 'length_disp',
-        'diff_X', 'diff_Y', 'diff_Z',
         'range_X', 'range_Y', 'range_Z',
         'ratio',
         'jerk',
@@ -96,9 +92,8 @@ def extractfeatures(trajectories):
 
         # 모든 특성을 하나의 리스트로 결합
         features = np.concatenate([
-            means, stds, mins, maxs,
+             stds,
             [length, disp, length_disp],
-            diff,
             bounding_box,
             [ratio],
             [total_jerk],
