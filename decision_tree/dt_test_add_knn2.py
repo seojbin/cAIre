@@ -7,6 +7,9 @@ import joblib
 import sys
 import os
 from sklearn.tree import DecisionTreeClassifier 
+# [신규] k-NN과 StandardScaler 임포트
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.preprocessing import StandardScaler
 from tslearn.neighbors import KNeighborsTimeSeriesClassifier
 from tslearn.preprocessing import TimeSeriesResampler
 from tensorflow.keras.preprocessing.sequence import pad_sequences
@@ -18,24 +21,23 @@ project_root = os.path.dirname(script_dir)
 sys.path.append(project_root)
 
 try:
-    from postprocess.preprocess import load, label
+    from postprocess.preprocess import load, label, augmentdata
     from postprocess.feature_extractor import extractfeatures
 except ImportError:
     print("전처리파일(preprocess.py, feature_extractor.py) 없음")
     exit()
 
 class HybridClassifier:
-    def __init__(self,maxdepthmain=5,maxdepthsimple=4,maxdepthcomplex=3,maxneighbor=3,randomstate=42):
+    def __init__(self,maxneighbor1=5,maxdepthsimple=3,maxdepthcomplex=3,maxneighbor2=3,randomstate=42):
         self.randomstate = randomstate
         
-        # 3개의 DT 모델 - 깊이는 3으로 일단 설정
-        self.model1 = DecisionTreeClassifier(max_depth=maxdepthmain, random_state=self.randomstate)
+        self.scaler = StandardScaler()
+        self.model1 = KNeighborsClassifier(n_neighbors=maxneighbor1) 
+        
         self.model2 = DecisionTreeClassifier(max_depth=maxdepthsimple, random_state=self.randomstate)
         self.model3 = DecisionTreeClassifier(max_depth=maxdepthcomplex, random_state=self.randomstate)
-        # n_neighbors=3: 3개와 비교
-        self.model4 = KNeighborsTimeSeriesClassifier(n_neighbors=maxneighbor, metric='dtw')
+        self.model4 = KNeighborsTimeSeriesClassifier(n_neighbors=maxneighbor2, metric='dtw')
         
-        # 라벨 ID 정의
         self.cid = label['circle']
         self.cdl = label['diagonal_left']
         self.cdr = label['diagonal_right']
@@ -50,10 +52,10 @@ class HybridClassifier:
         pass # 추론 시 불필요
 
     def predict(self, x, xorig):
-        # x: 테스트 특성 (xtest, 2D)
-        # xorig: 테스트 궤적 (xtestorig, 3D 리스트)
         
-        ypred1 = self.model1.predict(x)
+        x_scaled = self.scaler.transform(x) # 스케일링 적용
+        
+        ypred1 = self.model1.predict(x_scaled) # k-NN으로 예측
         ypred = np.zeros(len(x), dtype=int) 
 
         testsimplemask = (ypred1 == 0)
@@ -68,27 +70,20 @@ class HybridClassifier:
         if xtestcomplex.shape[0] > 0:
             ypred3 = self.model3.predict(xtestcomplex)
             
-            # 전체에서 complex로 예측된 인덱스를 찾음
             complex_indices = np.where(testcomplexmask)[0]
-
-            # ypred3 결과를 기반으로 마스크 생성
             mask3circle = (ypred3 == 0)
             mask3diag = (ypred3 == 1)
             
-            #complex인덱스 중 circle로 예측된 인덱스
             circle_indices_to_update = complex_indices[mask3circle]
             if len(circle_indices_to_update) > 0:
                 ypred[circle_indices_to_update] = self.cid
             
-            # complex 중 diag로 예측된 인덱스
             diag_indices_in_subset = complex_indices[mask3diag]
-            
-            #Model 4 예측 시 3D 궤적 원본 사용
             xtestdiag = [xorig[i] for i in diag_indices_in_subset]
 
             if len(xtestdiag) > 0:
                 xtestdiag = pad_sequences(xtestdiag, padding='post', dtype='float32', value=np.nan)
-                ypred4 = self.model4.predict(xtestdiag) # ypred4는 1(DL) 또는 2(DR)
+                ypred4 = self.model4.predict(xtestdiag) 
                 
                 if len(diag_indices_in_subset) == len(ypred4):
                      ypred[diag_indices_in_subset] = ypred4
@@ -98,10 +93,9 @@ class HybridClassifier:
         return ypred
 
     def getrules(self, featurenames):
-        rules1 = export_text(self.model1, feature_names=featurenames, class_names=['simple', 'complex'])
+        rules1 = f"KNeighborsClassifier(n_neighbors={self.model1.n_neighbors}, metric='euclidean')"
         rules2 = export_text(self.model2, feature_names=featurenames, class_names=['horizontal', 'vertical'])
         rules3 = export_text(self.model3, feature_names=featurenames, class_names=['circle', 'diagonal'])
-        # Model 4는 모델 정보를 반환
         rules4 = f"KNeighborsTimeSeriesClassifier(n_neighbors={self.model4.n_neighbors}, metric='{self.model4.metric}')"
         return rules1, rules2, rules3, rules4
 
@@ -131,18 +125,32 @@ ypred = model.predict(xnewfeatures, xnew)
 print("추론 결과")
 predicted_labels = [classnames[p] for p in ypred]
 true_labels = [classnames[t] for t in ytrue]
+
 try:
+    #설명 라벨 준비
+    xnewfeatures_scaled = model.scaler.transform(xnewfeatures) # 스케일링
+    model1_train_internal_labels = model.model1._y # [0, 1, 0...]
+    model1_label_map = {0: 'simple', 1: 'complex'}
+    model1_train_classnames = [model1_label_map[l] for l in model1_train_internal_labels]
     dtw_train_internal_labels = model.model4._y 
     dtw_original_labels_map = model.model4.classes_ 
-    # 올바른 테이블 생성
     dtw_train_classnames = [classnames[ dtw_original_labels_map[l] ] for l in dtw_train_internal_labels]
 except Exception as e:
     print(f"DTW 설명 라벨 로드 중 오류: {e}")
-    dtw_train_classnames = []
+    dtw_train_classnames = [] 
 
 for i in range(len(predicted_labels)):
     print(f"샘플 {i+1}: 예측={predicted_labels[i]}, 실제={true_labels[i]}")
+    try:
+        distances, indices = model.model1.kneighbors([xnewfeatures_scaled[i]])
+        neighbor_indices = indices[0]
+        neighbor_labels = [model1_train_classnames[idx] for idx in neighbor_indices]
+        model1_pred_name = model1_label_map[model.model1.predict([xnewfeatures_scaled[i]])[0]]
+        
+        print(f"  k-NN: 예측={model1_pred_name}, 이웃={neighbor_labels}")
 
+    except Exception as e:
+        print(f"  k-NN 설명 중 오류: {e}")
     #DTW로 예측된 경우(DL or DR), 왜 그렇게 예측했는지 근거(이웃) 출력
     if predicted_labels[i] in ['diagonal_left', 'diagonal_right']:
         try:
@@ -153,10 +161,11 @@ for i in range(len(predicted_labels)):
             neighbor_indices = indices[0]
             neighbor_labels = [dtw_train_classnames[idx] for idx in neighbor_indices]
             
-            print(f" DTW: {neighbor_labels}")
+            print(f"  DTW: {neighbor_labels}")
             
         except Exception as e:
             print(f"  DTW 설명 중 오류: {e}")
+
 if len(ytrue) > 0:
     print(classification_report(ytrue, ypred, target_names=classnames, zero_division=0))
     cm = confusion_matrix(ytrue, ypred)
