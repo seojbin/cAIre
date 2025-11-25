@@ -49,7 +49,7 @@ class HybridClassifier:
         self.complexlabels = [self.cid, self.cdl, self.cdr]
         self.simplelabels = [self.cho, self.cve]
         self.diagonallabels = [self.cdl, self.cdr]
-        self.drop_indices_model1 = []
+        self.drop_indices_model1 = [4,5,9,10,12]
 
     def _filter_features(self, x):
         return np.delete(x, self.drop_indices_model1, axis=1)
