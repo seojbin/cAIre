@@ -4,14 +4,12 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report
-from sklearn.tree import DecisionTreeClassifier, export_text
 from sklearn.svm import SVC
 from sklearn.preprocessing import StandardScaler
 import joblib
 import sys
 import os
 from tslearn.neighbors import KNeighborsTimeSeriesClassifier
-from tslearn.preprocessing import TimeSeriesResampler
 from tensorflow.keras.preprocessing.sequence import pad_sequences
 from sklearn.decomposition import PCA
 from mpl_toolkits.mplot3d import Axes3D
@@ -33,142 +31,146 @@ except ImportError:
 class HybridClassifier:
     def __init__(self, maxdepthsimple=3, maxdepthcomplex=3, maxneighbor2=3, randomstate=42):
         self.randomstate = randomstate
-        self.scaler = StandardScaler()
+        self.scaler1 = StandardScaler()
+        self.scaler2 = StandardScaler()
 
+        # Model 1: H vs V vs Complex (Linear SVM)
         self.model1 = SVC(kernel='linear', random_state=self.randomstate)
-
-        self.model3 = DecisionTreeClassifier(max_depth=maxdepthcomplex, random_state=self.randomstate)
-        self.model4 = KNeighborsTimeSeriesClassifier(n_neighbors=maxneighbor2, metric='dtw')
+        
+        # Model 2: Circle vs Diagonal (Linear SVM) - 결정나무에서 변경됨
+        self.model2 = SVC(kernel='linear', random_state=self.randomstate)
+        
+        # Model 3: Diag Left vs Diag Right (KNN-DTW) - 복구됨
+        self.model3 = KNeighborsTimeSeriesClassifier(n_neighbors=maxneighbor2, metric='dtw')
 
         self.cid = label['circle']
         self.cdl = label['diagonal_left']
         self.cdr = label['diagonal_right']
         self.cho = label['horizontal']
         self.cve = label['vertical']
-
-        self.complexlabels = [self.cid, self.cdl, self.cdr]
-        self.simplelabels = [self.cho, self.cve]
+        
         self.diagonallabels = [self.cdl, self.cdr]
-        self.drop_indices_model1 = [3,4,5,9,10,12]
+        self.complexlabels = [self.cid, self.cdl, self.cdr]
 
-    def _filter_features(self, x):
-        return np.delete(x, self.drop_indices_model1, axis=1)
+        # Model 1 제거 피쳐
+        self.drop_indices_model1 = [3,4,5,9,10,12]
+        
+        # Model 2 제거 피쳐
+        self.drop_indices_model2 = [3, 4, 5, 6, 8, 10]
+
+    def _filter_features(self, x, indices):
+        return np.delete(x, indices, axis=1)
 
     def fit(self, x, y, xorig):
-        x_filtered = self._filter_features(x)
-        self.scaler.fit(x_filtered)
-        x_scaled = self.scaler.transform(x_filtered)
+        x_filtered1 = self._filter_features(x, self.drop_indices_model1)
+        self.scaler1.fit(x_filtered1)
+        x_scaled1 = self.scaler1.transform(x_filtered1)
 
         ytrain1 = np.full(y.shape, 2)
         ytrain1[y == self.cho] = 0
         ytrain1[y == self.cve] = 1
-
+        
+        self.model1.fit(x_scaled1, ytrain1)
         complexmask = (ytrain1 == 2)
-        xtrain3 = x[complexmask]
-        ytrain3_orig = y[complexmask]
-        ytrain3 = np.where(np.isin(ytrain3_orig, self.diagonallabels), 1, 0)
-
+        xtrain2 = x[complexmask]
+        ytrain2_orig = y[complexmask]
+        
+        # 0: Circle, 1: Diagonal
+        ytrain2 = np.where(ytrain2_orig == self.cid, 0, 1)
+        
+        if len(xtrain2) > 0:
+            x_filtered2 = self._filter_features(xtrain2, self.drop_indices_model2)
+            self.scaler2.fit(x_filtered2)
+            x_scaled2 = self.scaler2.transform(x_filtered2)
+            self.model2.fit(x_scaled2, ytrain2)
         diagonalmask = np.isin(y, self.diagonallabels)
-        xtrain4 = [xorig[i] for i in range(len(xorig)) if diagonalmask[i]]
-        xtrain4 = pad_sequences(xtrain4, padding='post', dtype='float32', value=np.nan)
-        ytrain4 = y[diagonalmask]
-
-        self.model1.fit(x_scaled, ytrain1)
-        self.model3.fit(xtrain3, ytrain3)
-        self.model4.fit(xtrain4, ytrain4)
+        # 시계열 원본 데이터 사용
+        xtrain3 = [xorig[i] for i in range(len(xorig)) if diagonalmask[i]]
+        
+        if len(xtrain3) > 0:
+            xtrain3 = pad_sequences(xtrain3, padding='post', dtype='float32', value=np.nan)
+            ytrain3 = y[diagonalmask]
+            self.model3.fit(xtrain3, ytrain3)
 
     def predict(self, x, xorig):
-        x_filtered = self._filter_features(x)
-        x_scaled = self.scaler.transform(x_filtered)
-
-        ypred1 = self.model1.predict(x_scaled)
+        # Predict Model 1
+        x_filtered1 = self._filter_features(x, self.drop_indices_model1)
+        x_scaled1 = self.scaler1.transform(x_filtered1)
+        ypred1 = self.model1.predict(x_scaled1)
+        
         ypred = np.zeros(len(x), dtype=int)
-
         ypred[ypred1 == 0] = self.cho
         ypred[ypred1 == 1] = self.cve
 
-        testcomplexmask = (ypred1 == 2)
-
-        xtestcomplex = x[testcomplexmask]
-        if xtestcomplex.shape[0] > 0:
-            ypred3 = self.model3.predict(xtestcomplex)
-
-            complex_indices = np.where(testcomplexmask)[0]
-            mask3circle = (ypred3 == 0)
-            mask3diag = (ypred3 == 1)
-
-            circle_indices_to_update = complex_indices[mask3circle]
-            if len(circle_indices_to_update) > 0:
-                ypred[circle_indices_to_update] = self.cid
-
-            diag_indices_in_subset = complex_indices[mask3diag]
-            xtestdiag = [xorig[i] for i in diag_indices_in_subset]
-
-            if len(xtestdiag) > 0:
+        # Predict Complex (Circle vs Diagonal)
+        complexmask = (ypred1 == 2)
+        xtestcomplex = x[complexmask]
+        complex_indices = np.where(complexmask)[0]
+        
+        if len(complex_indices) > 0:
+            x_filtered2 = self._filter_features(xtestcomplex, self.drop_indices_model2)
+            x_scaled2 = self.scaler2.transform(x_filtered2)
+            ypred2 = self.model2.predict(x_scaled2) # 0: Circle, 1: Diagonal
+            
+            # Circle
+            circle_mask = (ypred2 == 0)
+            circle_indices = complex_indices[circle_mask]
+            ypred[circle_indices] = self.cid
+            
+            # Diagonal
+            diag_mask = (ypred2 == 1)
+            diag_indices = complex_indices[diag_mask]
+            
+            if len(diag_indices) > 0:
+                xtestdiag = [xorig[i] for i in diag_indices]
                 xtestdiag = pad_sequences(xtestdiag, padding='post', dtype='float32', value=np.nan)
-                ypred4 = self.model4.predict(xtestdiag)
-
-                if len(diag_indices_in_subset) == len(ypred4):
-                    ypred[diag_indices_in_subset] = ypred4
-                else:
-                    print("predict 길이 불일치")
+                
+                # DTW
+                ypred3 = self.model3.predict(xtestdiag)
+                ypred[diag_indices] = ypred3
 
         return ypred
 
     def getrules(self, featurenames):
-        rules1 = "Linear SVM "
-        rules3 = export_text(self.model3, feature_names=featurenames, class_names=['circle', 'diagonal'])
-        rules4 = f"KNeighborsTimeSeriesClassifier(n_neighbors={self.model4.n_neighbors}, metric='{self.model4.metric}')"
-        return rules1, rules3, rules4
-
+        rules1 = "Linear SVM (H vs V vs Complex)"
+        rules2 = "Linear SVM (Circle vs Diagonals)"
+        rules3 = f"KNN-DTW (n={self.model3.n_neighbors})"
+        return rules1, rules2, rules3
 
 def visualize_model1(model, features, y_true):
-    x_filtered = model._filter_features(features)
-    x_scaled = model.scaler.transform(x_filtered)
+    x_filtered = model._filter_features(features, model.drop_indices_model1)
+    x_scaled = model.scaler1.transform(x_filtered)
 
-    #3차원 PCA 변환
     pca = PCA(n_components=3)
     x_pca = pca.fit_transform(x_scaled)
 
     fig = plt.figure(figsize=(12, 10))
     ax = fig.add_subplot(111, projection='3d')
 
-    # 경계면
-    # SVM 가중치(w) 절편(b) PCA 공간 투영
-
-    # 축 범위 설정 (메쉬그리드 생성용)
     x_min, x_max = x_pca[:, 0].min() - 1, x_pca[:, 0].max() + 1
     y_min, y_max = x_pca[:, 1].min() - 1, x_pca[:, 1].max() + 1
     z_min, z_max = x_pca[:, 2].min() - 1, x_pca[:, 2].max() + 1
 
-    # SVM 모델 파라미터 가져오기
     w_all = model.model1.coef_
     b_all = model.model1.intercept_
 
     plane_colors = ['cyan', 'purple', 'orange']
     plane_labels = ['Horiz vs Vert', 'Horiz vs Complex', 'Vert vs Complex']
 
-    for i in range(3):
+    for i in range(min(3, len(w_all))):
         w_pca = w_all[i] @ pca.components_.T
         b_pca = b_all[i] + np.dot(w_all[i], pca.mean_)
-
-        # 평면 그리기
-        # w0*x + w1*y + w2*z + b=0
 
         xx, yy = np.meshgrid(np.linspace(x_min, x_max, 10),
                              np.linspace(y_min, y_max, 10))
 
-        # z
         if np.abs(w_pca[2]) > np.abs(w_pca[0]) and np.abs(w_pca[2]) > np.abs(w_pca[1]):
             z_plane = -(w_pca[0] * xx + w_pca[1] * yy + b_pca) / w_pca[2]
-            # z 범위 안에 들어오는 것만 그리기 (시각화 깔끔하게)
             mask = (z_plane >= z_min) & (z_plane <= z_max)
             if np.any(mask):
                 ax.plot_surface(xx, yy, z_plane, alpha=0.2, color=plane_colors[i])
-                # 범례용 더미 플롯
                 ax.plot([], [], [], color=plane_colors[i], alpha=0.5, label=f'Boundary: {plane_labels[i]}')
-
-        # y
+        
         elif np.abs(w_pca[1]) > np.abs(w_pca[0]):
             xx, zz = np.meshgrid(np.linspace(x_min, x_max, 10),
                                  np.linspace(z_min, z_max, 10))
@@ -177,8 +179,7 @@ def visualize_model1(model, features, y_true):
             if np.any(mask):
                 ax.plot_surface(xx, y_plane, zz, alpha=0.2, color=plane_colors[i])
                 ax.plot([], [], [], color=plane_colors[i], alpha=0.5, label=f'Boundary: {plane_labels[i]}')
-
-        # x
+        
         else:
             yy, zz = np.meshgrid(np.linspace(y_min, y_max, 10),
                                  np.linspace(z_min, z_max, 10))
@@ -188,7 +189,6 @@ def visualize_model1(model, features, y_true):
                 ax.plot_surface(x_plane, yy, zz, alpha=0.2, color=plane_colors[i])
                 ax.plot([], [], [], color=plane_colors[i], alpha=0.5, label=f'Boundary: {plane_labels[i]}')
 
-    # 산점도
     colordict = {
         label['horizontal']: 'blue',
         label['vertical']: 'cyan',
@@ -203,7 +203,6 @@ def visualize_model1(model, features, y_true):
         idxs = np.where(y_true == classid)[0]
         if len(idxs) == 0: continue
 
-        # SVM 매핑
         target = 0 if classid == label['horizontal'] else (1 if classid == label['vertical'] else 2)
 
         correct_idxs = idxs[ypredbinary[idxs] == target]
@@ -217,21 +216,83 @@ def visualize_model1(model, features, y_true):
         if len(wrong_idxs) > 0:
             ax.scatter(x_pca[wrong_idxs, 0], x_pca[wrong_idxs, 1], x_pca[wrong_idxs, 2],
                        c=colordict[classid], marker='X', s=100, edgecolor='black', linewidth=2,
-                       label=f'{classname} (Wrong)')
+                       label=f'{classname} (Wrong in M1)')
 
-    ax.set_title('SVM 3D PCA', fontsize=15)
+    ax.set_title('SVM H vs V vs Complex', fontsize=15)
     ax.set_xlabel('PC 1')
     ax.set_ylabel('PC 2')
     ax.set_zlabel('PC 3')
-
-    handles, labels = ax.get_legend_handles_labels()
-    by_label = dict(zip(labels, handles))
-    ax.legend(by_label.values(), by_label.keys(), bbox_to_anchor=(1.05, 1), loc='upper left')
-
-    ax.view_init(elev=25, azim=135)  # 초기 각도
+    ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+    ax.view_init(elev=25, azim=135)
     plt.tight_layout()
     plt.show()
 
+def visualize_model2(model, features, y_true):
+    complex_labels = [label['circle'], label['diagonal_left'], label['diagonal_right']]
+    mask = np.isin(y_true, complex_labels)
+    
+    x_subset = features[mask]
+    y_subset = y_true[mask]
+    
+    if len(x_subset) == 0: return
+
+    y_binary = np.where(y_subset == label['circle'], 0, 1)
+
+    x_filtered = model._filter_features(x_subset, model.drop_indices_model2)
+    x_scaled = model.scaler2.transform(x_filtered)
+
+    pca = PCA(n_components=3)
+    x_pca = pca.fit_transform(x_scaled)
+
+    fig = plt.figure(figsize=(12, 10))
+    ax = fig.add_subplot(111, projection='3d')
+
+    x_min, x_max = x_pca[:, 0].min() - 1, x_pca[:, 0].max() + 1
+    y_min, y_max = x_pca[:, 1].min() - 1, x_pca[:, 1].max() + 1
+    z_min, z_max = x_pca[:, 2].min() - 1, x_pca[:, 2].max() + 1
+
+    w = model.model2.coef_[0]
+    b = model.model2.intercept_[0]
+    
+    w_pca = w @ pca.components_.T
+    b_pca = b + np.dot(w, pca.mean_)
+
+    xx, yy = np.meshgrid(np.linspace(x_min, x_max, 10), np.linspace(y_min, y_max, 10))
+
+    if np.abs(w_pca[2]) > np.abs(w_pca[0]) and np.abs(w_pca[2]) > np.abs(w_pca[1]):
+        z_plane = -(w_pca[0] * xx + w_pca[1] * yy + b_pca) / w_pca[2]
+        mask_plane = (z_plane >= z_min) & (z_plane <= z_max)
+        if np.any(mask_plane):
+            ax.plot_surface(xx, yy, z_plane, alpha=0.3, color='green')
+
+    colordict = {0: 'red', 1: 'orange'}
+    labeldict = {0: 'Circle', 1: 'Diagonal'}
+    
+    ypred_subset = model.model2.predict(x_scaled)
+
+    for i in [0, 1]: 
+        idxs = np.where(y_binary == i)[0]
+        if len(idxs) == 0: continue
+
+        correct = idxs[ypred_subset[idxs] == i]
+        wrong = idxs[ypred_subset[idxs] != i]
+
+        if len(correct) > 0:
+            ax.scatter(x_pca[correct, 0], x_pca[correct, 1], x_pca[correct, 2],
+                       c=colordict[i], marker='o', s=60, edgecolor='black', alpha=0.9,
+                       label=labeldict[i])
+        if len(wrong) > 0:
+            ax.scatter(x_pca[wrong, 0], x_pca[wrong, 1], x_pca[wrong, 2],
+                       c=colordict[i], marker='X', s=100, edgecolor='black', linewidth=2,
+                       label=f'{labeldict[i]} (Wrong)')
+
+    ax.set_title('SVM Circle vs Diagonal', fontsize=15)
+    ax.set_xlabel('PC 1')
+    ax.set_ylabel('PC 2')
+    ax.set_zlabel('PC 3')
+    ax.legend()
+    plt.tight_layout()
+    plt.show()
 
 data = os.path.join(project_root, 'data')
 naugment = 9
@@ -277,14 +338,9 @@ accuracy = np.mean(ypred == ytest)
 print(f"\n테스트 정확도: {accuracy:.4f}")
 print(classification_report(ytest, ypred, target_names=classnames, zero_division=0))
 
-rules1, rules3, rules4 = model.getrules(featurenames)
-
-print("Model 1 (SVM)")
-print(rules1)
-
-print("circle vs diagonal")
-print(rules3)
-
-print("diagonal_left vs diagonal_right")
-print(rules4)
+r1, r2, r3 = model.getrules(featurenames)
+print(r1)
+print(r2)
+print(r3)
 visualize_model1(model, xtrain, ytrainaug)
+visualize_model2(model, xtrain, ytrainaug)
