@@ -102,12 +102,12 @@ def augment(traj, strength=1.0,scale_r=(0.9, 1.1), offset_mm=1.0):
     noise = np.random.normal(loc=0.0, scale=strength, size=newtraj.shape)
     newtraj += noise
     
-    # 크기 조절 - 50% 확률로 적용
+    # 크기 조절
     if np.random.rand() > 0.3:
         scale = np.random.uniform(scale_r[0], scale_r[1])
         newtraj *= scale
             
-    #평행 이동 - 50% 확률로 적용
+    #평행 이동
     if np.random.rand() > 0.3:
         # -5mm ~ +5mm 사이에서 각 축별로 랜덤한 값 선택
         offset = np.random.uniform(-offset_mm, offset_mm, size=3)
