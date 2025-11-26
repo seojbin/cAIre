@@ -15,7 +15,8 @@ def extractfeatures(trajectories):
         'ratio',
         'jerk',
         'xy_area',
-        'slope_xy']
+        'slope_xy',
+        'corr_xy']
 
     for traj in trajectories:
         #각 축의 기본 통계
@@ -38,7 +39,13 @@ def extractfeatures(trajectories):
             length_disp = length
         else:
             length_disp = length / disp
-
+        try:
+            #상관계수
+            corr_xy = np.corrcoef(traj[:, 0], traj[:, 1])[0, 1]
+            if np.isnan(corr_xy):
+                corr_xy = 0.0
+        except:
+            corr_xy = 0.0
         # 시작-끝 지점의 축별 차이
         diff = end - start
         
@@ -98,7 +105,8 @@ def extractfeatures(trajectories):
             [ratio],
             [total_jerk],
             [xy_area],
-            [slope_xy]
+            [slope_xy],
+            [corr_xy]#축별 변화량(시작과 끝)
         ])
         feature_list.append(features)
         
