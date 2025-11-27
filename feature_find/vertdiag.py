@@ -16,7 +16,7 @@ project_root = os.path.dirname(script_dir)
 sys.path.append(project_root)
 
 try:
-    from postprocess.preprocess import load, label
+    from postprocess.preprocess import load, label, augmentdata
     from postprocess.feature_extractor import extractfeatures
 except ImportError:
     print("전처리파일(preprocess.py, feature_extractor.py) 없음")
@@ -76,20 +76,32 @@ def plot_feature_distributions(df, top_features):
     plt.xticks(rotation=45)
     plt.grid(True, alpha=0.3)
     plt.tight_layout()
-    plt.show() # [Image of feature distribution boxplot]
+    plt.show()
 
 data_path = os.path.join(project_root, 'data')
-x_list, y_list = load(data_path)
+newdata_path = os.path.join(project_root, 'newdata')
+
+x_old, y_old = load(data_path)
+x_new, y_new = load(newdata_path)
+
+if len(x_new) > 0:
+    x_list = x_old + x_new
+    y_list = np.concatenate([y_old, y_new])
+else:
+    x_list = x_old
+    y_list = y_old
 
 if len(x_list) == 0:
     print("데이터 로드 실패")
     exit()
 
+x_aug, y_aug = augmentdata(x_list, y_list, n=9)
+
 # 특성 추출
-X_features, feature_names = extractfeatures(x_list)
+X_features, feature_names = extractfeatures(x_aug)
 
 df = pd.DataFrame(X_features, columns=feature_names)
-df['label'] = y_list
+df['label'] = y_aug
 inv_label = {v: k for k, v in label.items()}
 df['label_name'] = df['label'].map(inv_label)
 
