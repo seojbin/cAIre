@@ -1,0 +1,123 @@
+Robust Feature Optimization Log (Full History)
+Settings: Epochs=20, Initial Stress=6, Step=3
+=================================================
+
+[Round 1]
+--- Model 1 ---
+  [Stress 6] Score: 1.0000
+    Selected: ['Y_std', 'Z_std', 'ratio', 'corr_xy']
+    self.drop_indices_model1 = [0, 3, 4, 5, 6, 7, 8, 10, 11, 12]
+
+  [Stress 9] Score: 1.0000
+    Selected: ['Z_std', 'range_Y', 'ratio', 'corr_xy']
+    self.drop_indices_model1 = [0, 1, 3, 4, 5, 6, 8, 10, 11, 12]
+
+  [Stress 12] Score: 1.0000
+    Selected: ['range_Y', 'range_Z', 'ratio', 'corr_xy']
+    self.drop_indices_model1 = [0, 1, 2, 3, 4, 5, 6, 10, 11, 12]
+
+  [Stress 15] Score: 1.0000
+    Selected: ['range_Y', 'range_Z', 'ratio']
+    self.drop_indices_model1 = [0, 1, 2, 3, 4, 5, 6, 10, 11, 12, 13]
+
+  [Stress 18] Score: 1.0000
+    Selected: ['Y_std', 'range_Z', 'ratio', 'corr_xy']
+    self.drop_indices_model1 = [0, 2, 3, 4, 5, 6, 7, 10, 11, 12]
+
+  [Stress 21] Score: 1.0000
+    Selected: ['Z_std', 'range_Y', 'ratio', 'corr_xy']
+    self.drop_indices_model1 = [0, 1, 3, 4, 5, 6, 8, 10, 11, 12]
+
+  [Stress 24] Score: 1.0000
+    Selected: ['range_Y', 'range_Z', 'ratio', 'corr_xy']
+    self.drop_indices_model1 = [0, 1, 2, 3, 4, 5, 6, 10, 11, 12]
+
+  [Stress 27] Score: 1.0000
+    Selected: ['range_Y', 'range_Z', 'ratio']
+    self.drop_indices_model1 = [0, 1, 2, 3, 4, 5, 6, 10, 11, 12, 13]
+
+  [Stress 30] Score: 1.0000
+    Selected: ['range_Y', 'range_Z', 'ratio', 'corr_xy']
+    self.drop_indices_model1 = [0, 1, 2, 3, 4, 5, 6, 10, 11, 12]
+
+  [Stress 33] Score: 1.0000
+    Selected: ['X_std', 'Y_std', 'range_Z', 'corr_xy']
+    self.drop_indices_model1 = [2, 3, 4, 5, 6, 7, 9, 10, 11, 12]
+
+  [Stress 36] Score: 1.0000
+    Selected: ['disp', 'range_Y', 'ratio', 'corr_xy']
+    self.drop_indices_model1 = [0, 1, 2, 3, 5, 6, 8, 10, 11, 12]
+
+------------------------------
+--- Model 2 ---
+  [Stress 6] Score: 1.0000
+    Selected: ['ratio']
+    self.drop_indices_model2 = [0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13]
+
+  [Stress 9] Score: 1.0000
+    Selected: ['ratio']
+    self.drop_indices_model2 = [0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13]
+
+  [Stress 12] Score: 1.0000
+    Selected: ['ratio']
+    self.drop_indices_model2 = [0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13]
+
+  [Stress 15] Score: 1.0000
+    Selected: ['ratio']
+    self.drop_indices_model2 = [0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13]
+
+  [Stress 18] Score: 1.0000
+    Selected: ['ratio']
+    self.drop_indices_model2 = [0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13]
+
+  [Stress 21] Score: 1.0000
+    Selected: ['ratio']
+    self.drop_indices_model2 = [0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13]
+
+  [Stress 24] Score: 1.0000
+    Selected: ['ratio']
+    self.drop_indices_model2 = [0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13]
+
+  [Stress 27] Score: 1.0000
+    Selected: ['ratio']
+    self.drop_indices_model2 = [0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13]
+
+  [Stress 30] Score: 1.0000
+    Selected: ['ratio']
+    self.drop_indices_model2 = [0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13]
+
+  [Stress 33] Score: 1.0000
+    Selected: ['ratio']
+    self.drop_indices_model2 = [0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13]
+
+  [Stress 36] Score: 1.0000
+    Selected: ['ratio']
+    self.drop_indices_model2 = [0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13]
+
+------------------------------
+--- Model 3 ---
+  [Stress 6] Score: 0.6062
+    Selected: ['slope_xy']
+    self.drop_indices_model3 = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13]
+
+------------------------------
+
+[Round 2]
+--- Model 1 ---
+  [Stress 6] Score: 1.0000
+    Selected: ['length', 'range_Y', 'ratio', 'corr_xy']
+    self.drop_indices_model1 = [0, 1, 2, 4, 5, 6, 8, 10, 11, 12]
+
+  [Stress 9] Score: 1.0000
+    Selected: ['X_std', 'Z_std', 'range_Y', 'ratio']
+    self.drop_indices_model1 = [1, 3, 4, 5, 6, 8, 10, 11, 12, 13]
+
+  [Stress 12] Score: 1.0000
+    Selected: ['X_std', 'Z_std', 'range_Y', 'ratio', 'corr_xy']
+    self.drop_indices_model1 = [1, 3, 4, 5, 6, 8, 10, 11, 12]
+
+  [Stress 15] Score: 0.9789
+    Selected: ['Y_std', 'corr_xy']
+    self.drop_indices_model1 = [0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+
+------------------------------

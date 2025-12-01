@@ -120,7 +120,7 @@ class HybridClassifierRobustness:
 ITERATIONS = 50       # 반복 횟수
 TEST_SIZE = 0.2        # 검증 비율
 TRAIN_AUG_N = 9        # 학습 데이터 증강 배수
-VAL_STRESS_N = 3       # 검증 데이터 가할 노이즈 배수
+VAL_STRESS_N = 15       # 검증 데이터 가할 노이즈 배수
 
 data_path = os.path.join(project_root, 'data')
 newdata_path = os.path.join(project_root, 'newdata')
