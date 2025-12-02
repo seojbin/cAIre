@@ -1,113 +1,93 @@
 #3D 궤적 데이터 리스트를 2D 배열로 특성 추출해 변환하는 코드
 import numpy as np
 from sklearn.decomposition import PCA
-from sklearn.linear_model import LinearRegression # 선형 회귀
-from scipy.spatial import ConvexHull, QhullError # 2D 면적 계산
+from sklearn.linear_model import LinearRegression
+from scipy.spatial import ConvexHull, QhullError
+
 
 def extractfeatures(trajectories):
-
-    
     feature_list = []
+    # 피쳐 이름 (총 16개로 변경: 14, 15는 Apex Vector)
     feature_names = [
-        'X_std', 'Y_std', 'Z_std',
-        'length', 'disp', 'length_disp',
-        'range_X', 'range_Y', 'range_Z',
-        'ratio',
-        'jerk',
-        'xy_area',
-        'slope_xy',
-        'corr_xy']
+        'X_std', 'Y_std', 'Z_std',  # 0, 1, 2
+        'length', 'disp', 'length_disp',  # 3, 4, 5
+        'range_X', 'range_Y', 'range_Z',  # 6, 7, 8
+        'ratio',  # 9
+        'jerk',  # 10
+        'xy_area',  # 11
+        'slope_xy',  # 12
+        'corr_xy',  # 13
+        'apex_vec_x', 'apex_vec_y'  # 14, 15
+    ]
 
     for traj in trajectories:
-        #각 축의 기본 통계
-        means = np.mean(traj, axis=0)
         stds = np.std(traj, axis=0)
         mins = np.min(traj, axis=0)
         maxs = np.max(traj, axis=0)
-        
-        # 궤적의 전체 길이
-        dist = np.linalg.norm(np.diff(traj, axis=0), axis=1)
-        length = np.sum(dist)
 
-        # 궤적의 총 변위
+        diffs = np.diff(traj, axis=0)
+        length = np.sum(np.linalg.norm(diffs, axis=1))
         start = traj[0]
         end = traj[-1]
         disp = np.linalg.norm(end - start)
-        
-        # 변위 대비 길이 비율
-        if disp < 1e-6:
-            length_disp = length
-        else:
-            length_disp = length / disp
-        try:
-            #상관계수
-            corr_xy = np.corrcoef(traj[:, 0], traj[:, 1])[0, 1]
-            if np.isnan(corr_xy):
-                corr_xy = 0.0
-        except:
-            corr_xy = 0.0
-        # 시작-끝 지점의 축별 차이
-        diff = end - start
-        
-        #바운딩 박스 크기
-        bounding_box = maxs - mins
-        
-        #PCA 주성분 분석
-        ratio = 0.0
-        
-        #곡률
-        jerk = 0.0
-        
-        #2D 면적
-        xy_area = 0.0
+        length_disp = length / disp if disp > 1e-6 else length
 
-        #XY 기울기
+        bounding_box = maxs - mins
+
+        corr_xy = 0.0
+        try:
+            c = np.corrcoef(traj[:, 0], traj[:, 1])[0, 1]
+            if not np.isnan(c): corr_xy = c
+        except:
+            pass
+
+        ratio = 0.0
+        total_jerk = 0.0
+        xy_area = 0.0
         slope_xy = 0.0
-        
-        # 최소 4개 타임스텝이 있어야 Jerk/Area/Slope 계산 가능
+
+        # Apex Vector 계산
+        apex_vec_x = 0.0
+        apex_vec_y = 0.0
+        if len(traj) > 1:
+            dist_from_start = np.linalg.norm(traj - start, axis=1)
+            apex_idx = np.argmax(dist_from_start)
+            apex_point = traj[apex_idx]
+            apex_vec = apex_point - start
+            magnitude = np.linalg.norm(apex_vec)
+            if magnitude > 1e-6:
+                apex_vec_x = apex_vec[0] / magnitude  # X 성분 정규화
+                apex_vec_y = apex_vec[1] / magnitude  # Y 성분 정규화
+            else:
+                apex_vec_x = 0.0
+                apex_vec_y = 0.0
+            apex_vec_x = apex_vec[0]
+            apex_vec_y = apex_vec[1]
+
         if len(traj) > 4:
             try:
-                # PCA
                 pca = PCA(n_components=1)
                 pca.fit(traj)
                 ratio = pca.explained_variance_ratio_[0]
 
-                # Jerk
-                # (N, 3) -> (N-1, 3) -> (N-2, 3) -> (N-3, 3)
-                velocities = np.diff(traj, axis=0)
-                accelerations = np.diff(velocities, axis=0)
-                jerks = np.diff(accelerations, axis=0)
-                total_jerk = np.sum(np.linalg.norm(jerks, axis=1))
+                acc = np.diff(diffs, axis=0)
+                jerk = np.diff(acc, axis=0)
+                total_jerk = np.sum(np.linalg.norm(jerk, axis=1))
 
-                #2D Area
-                xy_coords = traj[:, :2] # XY 평면만
-                hull = ConvexHull(xy_coords)
-                xy_area = hull.volume # 2D에서는 Volume이 Area
-            
-                #Regression Slope
-                x_coords = traj[:, 0].reshape(-1, 1) # X축
-                y_coords = traj[:, 1] # Y축
+                hull = ConvexHull(traj[:, :2])
+                xy_area = hull.volume
+
                 lr = LinearRegression()
-                lr.fit(x_coords, y_coords)
-                slope_xy = lr.coef_[0] # 기울기
-                
-            except (QhullError, ValueError):
-                # 궤적이 완벽한 직선이면 오류
-                total_jerk = 0.0
-                xy_area = 0.0
-                slope_xy = 0.0 # 오류 시 기본값
+                lr.fit(traj[:, 0].reshape(-1, 1), traj[:, 1])
+                slope_xy = lr.coef_[0]
+            except:
+                pass
 
-        # 모든 특성을 하나의 리스트로 결합
         features = np.concatenate([
-             stds,
-            [length, disp, length_disp],
-            bounding_box,
-            [ratio],
-            [total_jerk],
-            [xy_area],
-            [slope_xy],
-            [corr_xy]#축별 변화량(시작과 끝)
+            stds, [length, disp, length_disp], bounding_box,
+            [ratio], [total_jerk], [xy_area], [slope_xy], [corr_xy],
+            [apex_vec_x, apex_vec_y]
         ])
         feature_list.append(features)
-        
+
     return np.array(feature_list), feature_names

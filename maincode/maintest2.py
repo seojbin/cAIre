@@ -150,7 +150,7 @@ def visualize_model(model_clf, scaler, select_indices, x_data, y_true, title, la
 
 
 # --- Execution ---
-modelpath = os.path.join(script_dir, 'mainmodel.joblib')
+modelpath = os.path.join(script_dir, 'mainmodel2.joblib')
 newdata = os.path.join(project_root, 'newdata')
 classnames = list(label.keys())
 
