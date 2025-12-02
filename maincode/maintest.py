@@ -43,8 +43,8 @@ class HybridClassifier:
         self.cve = label['vertical']
         
         self.select_indices_model1 = [11, 16] 
-        self.select_indices_model2 = [1, 2, 6, 7, 8, 11]
-        self.select_indices_model3 = [1, 2, 6, 7, 8, 11]
+        self.select_indices_model2 = [1, 2, 6, 7, 8]
+        self.select_indices_model3 = [1, 2, 6, 7, 8]
         self.select_indices_model4 = [14, 15]
 
     def _filter_features(self, x, indices):

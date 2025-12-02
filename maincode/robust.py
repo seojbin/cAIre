@@ -91,9 +91,9 @@ class HybridClassifierRobustness:
         # M1: Circle vs Rest
         self.select_indices_model1 = [9, 11, 16] 
         # M2: H vs Rest
-        self.select_indices_model2 = [1, 2, 6, 7, 8, 11]
+        self.select_indices_model2 = [1, 2, 6, 7, 8]
         # M3: V vs Diag
-        self.select_indices_model3 = [1, 2, 6, 7, 8, 11]
+        self.select_indices_model3 = [1, 2, 6, 7, 8]
         # M4: L vs R
         self.select_indices_model4 = [14, 15]
 
