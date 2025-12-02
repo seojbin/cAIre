@@ -45,10 +45,10 @@ class HybridClassifier:
         self.cve = label['vertical']
 
         # 피쳐 인덱스
-        self.select_indices_model1 = [2,6,7,8]
-        self.select_indices_model2 = [0,1,8, 11]
-        self.select_indices_model3 = [1,7,9, 11, 12]
-        self.select_indices_model4 = [14, 15]
+        self.select_indices_model1 = [1, 2, 6, 7, 8, 11, 14]
+        self.select_indices_model2 = [1, 2, 6, 7, 8, 11, 14]
+        self.select_indices_model3 = [1, 7, 9, 11, 12, 0]
+        self.select_indices_model4 = [14, 15, 6]
 
     def _filter_features(self, x, indices):
         return x[:, indices]
