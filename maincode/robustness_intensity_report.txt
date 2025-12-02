@@ -1,0 +1,19 @@
+Noise Intensity Robustness Report
+=================================
+
+[Failure Counts by Noise Level]
+Noise_Sigma
+40.0     4
+50.0    19
+
+[Top Failure Causes]
+Cause
+M2 (False Horiz)    12
+M3 (Missed Vert)    10
+M4 (L->R Fail)       1
+
+[Most Vulnerable Classes]
+True_Label
+vertical          10
+diagonal_left      8
+diagonal_right     5
