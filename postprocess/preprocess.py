@@ -155,7 +155,7 @@ def augment(traj, strength=1.0, scale_r=(0.9, 1.1), offset_mm=1.0):
         R = np.array(((c, -s, 0), (s, c, 0), (0, 0, 1)))
         newtraj = np.dot(newtraj, R.T)
 
-    if np.random.rand() > 0.3:  # 50% 확률로 적용
+    if np.random.rand() > 0.5:  # 50% 확률로 적용
         drift_level = strength * 0.1
         drift_step = np.random.normal(loc=0.0, scale=drift_level, size=newtraj.shape)
         drift = np.cumsum(drift_step, axis=0)
