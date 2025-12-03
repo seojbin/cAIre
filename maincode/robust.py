@@ -3,14 +3,51 @@ import pandas as pd
 import sys
 import os
 import contextlib
-import time
+import copy
 from sklearn.model_selection import StratifiedShuffleSplit
 from sklearn.svm import SVC
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import accuracy_score
+from scipy.spatial.transform import Rotation as R
 
 # ==========================================
-# 환경 설정
+# 1. 테스트 설정
+# ==========================================
+NOISE_MODE = 'DRIFT'  # 'GAUSSIAN', 'SPIKE', 'DRIFT', 'ROTATION'
+
+if NOISE_MODE == 'GAUSSIAN':
+    STRESS_LEVELS = [10.0, 30.0, 50.0, 100.0]
+elif NOISE_MODE == 'SPIKE':
+    STRESS_LEVELS = [100.0, 500.0, 1000.0, 2000.0]
+elif NOISE_MODE == 'DRIFT':
+    STRESS_LEVELS = [1.0, 3.0, 5.0, 10.0]
+elif NOISE_MODE == 'ROTATION':
+    STRESS_LEVELS = [5.0, 15.0, 30.0, 45.0]
+
+VAL_COPY_N = 10
+TRAIN_AUG_N = 9
+ITERATIONS = 5
+
+# ==========================================
+# 2. 피쳐 세트 설정
+# ==========================================
+FEATURE_CONFIGS = {
+    "Baseline": {
+        "M1": [5, 9, 11, 16, 18],
+        "M2": [1, 2, 8, 17],
+        "M3": [1, 6, 7, 8, 17],
+        "M4": [14, 15]
+    },
+    "Experimental_V1": {
+        "M1": [5, 9, 11, 16, 18],
+        "M2": [1, 2, 7, 8, 17],
+        "M3": [1, 2, 6, 7, 8, 17],
+        "M4": [14, 15]
+    },
+}
+
+# ==========================================
+# 환경 설정 및 임포트
 # ==========================================
 current = os.path.abspath(__file__)
 script_dir = os.path.dirname(current)
@@ -18,86 +55,93 @@ project_root = os.path.dirname(script_dir)
 sys.path.append(project_root)
 
 try:
-    from postprocess.preprocess import load, label, augmentdata
+    from postprocess.preprocess import load, label, augmentdata, remove_spikes, smooth_trajectory
     from postprocess.feature_extractor import extractfeatures
 except ImportError:
     print("오류: 전처리 파일(postprocess 패키지) 없음")
     exit()
 
+inv_label = {v: k for k, v in label.items()}
+
+
 @contextlib.contextmanager
 def suppress_stdout():
     with open(os.devnull, "w") as devnull:
-        old_stdout = sys.stdout
+        old = sys.stdout
         sys.stdout = devnull
         try:
             yield
         finally:
-            sys.stdout = old_stdout
+            sys.stdout = old
+
 
 # ==========================================
-# 파라미터 설정
+# 노이즈 생성 함수
 # ==========================================
-ITERATIONS = 10             # 총 반복 횟수
-TEST_SIZE = 0.2             
-TRAIN_AUG_N = 9             # 학습 데이터 증강 배수 (개수)
-
-# [핵심 변경] 검증용 노이즈 설정
-VAL_COPY_N = 10             # 검증 시 샘플당 생성할 복제 개수
-NOISE_LEVELS = [20.0, 30.0, 40.0, 50.0] # 테스트할 노이즈 강도 (Sigma) 리스트
-# 1.0: 기본 노이즈, 2.0: 2배, 5.0: 극한 노이즈
-
-# ==========================================
-# 커스텀 노이즈 생성 함수 (직접 구현)
-# ==========================================
-def custom_noise_augment(x_raw, y_raw, n_copies, noise_sigma):
-    """
-    기존 augmentdata 대신, 직접 노이즈 강도(sigma)를 조절하여 데이터를 증강합니다.
-    """
+def custom_noise_augment(x_raw, y_raw, n_copies, level, mode):
     aug_x = []
     aug_y = []
-    
     for traj, lbl in zip(x_raw, y_raw):
-        # 원본 1개 추가 (선택 사항, 여기선 스트레스 테스트라 제외 가능하지만 포함함)
         aug_x.append(traj)
         aug_y.append(lbl)
-        
         for _ in range(n_copies):
-            # 가우시안 노이즈 생성 (Scale = noise_sigma)
-            noise = np.random.normal(loc=0.0, scale=noise_sigma, size=traj.shape)
-            new_traj = traj + noise
-            
+            new_traj = traj.copy()
+            if mode == 'GAUSSIAN':
+                noise = np.random.normal(loc=0.0, scale=level, size=traj.shape)
+                new_traj += noise
+            elif mode == 'SPIKE':
+                n_points = len(traj)
+                n_spikes = np.random.randint(1, 4)
+                spike_indices = np.random.choice(n_points, n_spikes, replace=False)
+                for idx in spike_indices:
+                    direction = np.random.randn(3)
+                    new_traj[idx] += direction * level
+            elif mode == 'DRIFT':
+                drift_step = np.random.normal(loc=0.0, scale=level, size=traj.shape)
+                drift = np.cumsum(drift_step, axis=0)
+                new_traj += drift
+            elif mode == 'ROTATION':
+                angle_rad = np.radians(np.random.uniform(-level, level))
+                c, s = np.cos(angle_rad), np.sin(angle_rad)
+                R_z = np.array([[c, -s, 0], [s, c, 0], [0, 0, 1]])
+                new_traj = np.dot(new_traj, R_z.T)
             aug_x.append(new_traj)
             aug_y.append(lbl)
-            
     return aug_x, np.array(aug_y)
 
+
 # ==========================================
-# 모델 클래스
+# 모델 클래스 (피쳐 진단 기능 추가)
 # ==========================================
 class HybridClassifierRobustness:
-    def __init__(self, randomstate=42):
+    def __init__(self, feature_config, feature_names_list, randomstate=42):
         self.randomstate = randomstate
-        self.scaler1 = StandardScaler(); self.scaler2 = StandardScaler()
-        self.scaler3 = StandardScaler(); self.scaler4 = StandardScaler()
-        
+        self.feature_names_list = feature_names_list  # 전체 피쳐 이름 목록
+        self.total_feature_count = len(feature_names_list)
+
+        self.scaler1 = StandardScaler()
+        self.scaler2 = StandardScaler()
+        self.scaler3 = StandardScaler()
+        self.scaler4 = StandardScaler()
+
         self.model1 = SVC(kernel='linear', random_state=randomstate, class_weight='balanced')
         self.model2 = SVC(kernel='linear', random_state=randomstate, class_weight='balanced')
         self.model3 = SVC(kernel='linear', random_state=randomstate, class_weight='balanced')
         self.model4 = SVC(kernel='linear', random_state=randomstate, class_weight='balanced')
-        
-        self.cid = label['circle']; self.cdl = label['diagonal_left']; self.cdr = label['diagonal_right']
-        self.cho = label['horizontal']; self.cve = label['vertical']
-        
-        # M1: Circle vs Rest
-        self.select_indices_model1 = [9, 11, 16] 
-        # M2: H vs Rest
-        self.select_indices_model2 = [1, 2, 6, 7, 8]
-        # M3: V vs Diag
-        self.select_indices_model3 = [1, 2, 6, 7, 8]
-        # M4: L vs R
-        self.select_indices_model4 = [14, 15]
 
-    def _filter_features(self, x, indices): return x[:, indices]
+        self.cid = label['circle']
+        self.cdl = label['diagonal_left']
+        self.cdr = label['diagonal_right']
+        self.cho = label['horizontal']
+        self.cve = label['vertical']
+
+        self.select_indices_model1 = feature_config["M1"]
+        self.select_indices_model2 = feature_config["M2"]
+        self.select_indices_model3 = feature_config["M3"]
+        self.select_indices_model4 = feature_config["M4"]
+
+    def _filter_features(self, x, indices):
+        return x[:, indices]
 
     def fit(self, x, y):
         # M1
@@ -105,19 +149,22 @@ class HybridClassifierRobustness:
         self.scaler1.fit(x_f1)
         self.model1.fit(self.scaler1.transform(x_f1), np.where(y == self.cid, 0, 1))
         # M2
-        mask_m2 = (y != self.cid); x_m2, y_m2 = x[mask_m2], y[mask_m2]
+        mask_m2 = (y != self.cid)
+        x_m2, y_m2 = x[mask_m2], y[mask_m2]
         if len(x_m2) > 0:
             x_f2 = self._filter_features(x_m2, self.select_indices_model2)
             self.scaler2.fit(x_f2)
             self.model2.fit(self.scaler2.transform(x_f2), np.where(y_m2 == self.cho, 0, 1))
             # M3
-            mask_m3 = (y_m2 != self.cho); x_m3, y_m3 = x_m2[mask_m3], y_m2[mask_m3]
+            mask_m3 = (y_m2 != self.cho)
+            x_m3, y_m3 = x_m2[mask_m3], y_m2[mask_m3]
             if len(x_m3) > 0:
                 x_f3 = self._filter_features(x_m3, self.select_indices_model3)
                 self.scaler3.fit(x_f3)
                 self.model3.fit(self.scaler3.transform(x_f3), np.where(y_m3 == self.cve, 0, 1))
                 # M4
-                mask_m4 = (y_m3 != self.cve); x_m4, y_m4 = x_m3[mask_m4], y_m3[mask_m4]
+                mask_m4 = (y_m3 != self.cve)
+                x_m4, y_m4 = x_m3[mask_m4], y_m3[mask_m4]
                 if len(x_m4) > 0:
                     x_f4 = self._filter_features(x_m4, self.select_indices_model4)
                     self.scaler4.fit(x_f4)
@@ -125,58 +172,146 @@ class HybridClassifierRobustness:
 
     def predict(self, x):
         ypred = np.zeros(len(x), dtype=int)
-        # M1
         x_f1 = self._filter_features(x, self.select_indices_model1)
         p1 = self.model1.predict(self.scaler1.transform(x_f1))
         ypred[p1 == 0] = self.cid
         rest_idx = np.where(p1 == 1)[0]
         if len(rest_idx) == 0: return ypred
-        # M2
-        x_rest = x[rest_idx]; x_f2 = self._filter_features(x_rest, self.select_indices_model2)
+
+        x_rest = x[rest_idx]
+        x_f2 = self._filter_features(x_rest, self.select_indices_model2)
         p2 = self.model2.predict(self.scaler2.transform(x_f2))
         ypred[rest_idx[p2 == 0]] = self.cho
         rest_idx2 = rest_idx[p2 == 1]
         if len(rest_idx2) == 0: return ypred
-        # M3
-        x_rest2 = x[rest_idx2]; x_f3 = self._filter_features(x_rest2, self.select_indices_model3)
+
+        x_rest2 = x[rest_idx2]
+        x_f3 = self._filter_features(x_rest2, self.select_indices_model3)
         p3 = self.model3.predict(self.scaler3.transform(x_f3))
         ypred[rest_idx2[p3 == 0]] = self.cve
         diag_idx = rest_idx2[p3 == 1]
         if len(diag_idx) == 0: return ypred
-        # M4
-        x_diag = x[diag_idx]; x_f4 = self._filter_features(x_diag, self.select_indices_model4)
+
+        x_diag = x[diag_idx]
+        x_f4 = self._filter_features(x_diag, self.select_indices_model4)
         p4 = self.model4.predict(self.scaler4.transform(x_f4))
-        for i, val in enumerate(p4): ypred[diag_idx[i]] = self.cdl if val == 0 else self.cdr
+        for i, val in enumerate(p4):
+            ypred[diag_idx[i]] = self.cdl if val == 0 else self.cdr
         return ypred
 
     def diagnose(self, x_single, y_true):
         x = x_single.reshape(1, -1)
-        # M1
+        # M1 Check
         p1 = self.model1.predict(self.scaler1.transform(self._filter_features(x, self.select_indices_model1)))[0]
-        if y_true == self.cid: return "M1 (Missed Circle)" if p1 != 0 else None
-        if p1 == 0: return "M1 (False Circle)"
-        # M2
+        if y_true == self.cid: return ("M1", "M1 (Missed Circle)") if p1 != 0 else (None, None)
+        if p1 == 0: return ("M1", "M1 (False Circle)")
+        # M2 Check
         p2 = self.model2.predict(self.scaler2.transform(self._filter_features(x, self.select_indices_model2)))[0]
-        if y_true == self.cho: return "M2 (Missed Horiz)" if p2 != 0 else None
-        if p2 == 0: return "M2 (False Horiz)"
-        # M3
+        if y_true == self.cho: return ("M2", "M2 (Missed Horiz)") if p2 != 0 else (None, None)
+        if p2 == 0: return ("M2", "M2 (False Horiz)")
+        # M3 Check
         p3 = self.model3.predict(self.scaler3.transform(self._filter_features(x, self.select_indices_model3)))[0]
-        if y_true == self.cve: return "M3 (Missed Vert)" if p3 != 0 else None
-        if p3 == 0: return "M3 (False Vert)"
-        # M4
+        if y_true == self.cve: return ("M3", "M3 (Missed Vert)") if p3 != 0 else (None, None)
+        if p3 == 0: return ("M3", "M3 (False Vert)")
+        # M4 Check
         p4 = self.model4.predict(self.scaler4.transform(self._filter_features(x, self.select_indices_model4)))[0]
         target = 0 if y_true == self.cdl else 1
-        if p4 != target: return f"M4 ({'L->R' if target==0 else 'R->L'} Fail)"
-        return "Unknown"
+        if p4 != target: return ("M4", f"M4 ({'L->R' if target == 0 else 'R->L'} Fail)")
+        return ("Unknown", "Unknown")
 
-# ==========================================
-# 메인 실행
-# ==========================================
+    def suggest_fix(self, x_train_full, y_train_full, x_fail_sample, y_fail_true, failed_model_name):
+        suggestions = []
+
+        # 1. 대상 모델 데이터 준비
+        if failed_model_name == "M1":
+            target_indices = self.select_indices_model1
+            x_train = x_train_full
+            y_binary = np.where(y_train_full == self.cid, 0, 1)
+            y_true_binary = 0 if y_fail_true == self.cid else 1
+
+        elif failed_model_name == "M2":
+            mask = y_train_full != self.cid
+            if np.sum(mask) == 0: return "No Data"
+            x_train = x_train_full[mask]
+            y_binary = np.where(y_train_full[mask] == self.cho, 0, 1)
+            y_true_binary = 0 if y_fail_true == self.cho else 1
+            target_indices = self.select_indices_model2
+
+        elif failed_model_name == "M3":
+            mask = (y_train_full != self.cid) & (y_train_full != self.cho)
+            if np.sum(mask) == 0: return "No Data"
+            x_train = x_train_full[mask]
+            y_binary = np.where(y_train_full[mask] == self.cve, 0, 1)
+            y_true_binary = 0 if y_fail_true == self.cve else 1
+            target_indices = self.select_indices_model3
+
+        elif failed_model_name == "M4":
+            mask = (y_train_full != self.cid) & (y_train_full != self.cho) & (y_train_full != self.cve)
+            if np.sum(mask) == 0: return "No Data"
+            x_train = x_train_full[mask]
+            y_binary = np.where(y_train_full[mask] == self.cdl, 0, 1)
+            y_true_binary = 0 if y_fail_true == self.cdl else 1
+            target_indices = self.select_indices_model4
+        else:
+            return "Unknown Model"
+
+        # 2. Case A: 피쳐 하나 빼보기 (Removal Test)
+        for idx_to_remove in target_indices:
+            temp_indices = [i for i in target_indices if i != idx_to_remove]
+            if not temp_indices: continue
+
+            temp_scaler = StandardScaler()
+            temp_model = SVC(kernel='linear', random_state=self.randomstate, class_weight='balanced')
+
+            x_tr_sub = x_train[:, temp_indices]
+            temp_scaler.fit(x_tr_sub)
+            temp_model.fit(temp_scaler.transform(x_tr_sub), y_binary)
+
+            x_val_sub = x_fail_sample.reshape(1, -1)[:, temp_indices]
+            pred = temp_model.predict(temp_scaler.transform(x_val_sub))[0]
+
+            if pred == y_true_binary:
+                feat_name = self.feature_names_list[idx_to_remove]
+                # [수정됨] 모델 이름 명시
+                suggestions.append(f"[{failed_model_name}] Remove '{feat_name}'")
+
+        # 3. Case B: 피쳐 하나 더해보기 (Addition Test)
+        all_indices = set(range(self.total_feature_count))
+        current_indices_set = set(target_indices)
+        candidate_indices = list(all_indices - current_indices_set)
+
+        for idx_to_add in candidate_indices:
+            temp_indices = target_indices + [idx_to_add]
+
+            temp_scaler = StandardScaler()
+            temp_model = SVC(kernel='linear', random_state=self.randomstate, class_weight='balanced')
+
+            x_tr_sub = x_train[:, temp_indices]
+            temp_scaler.fit(x_tr_sub)
+            temp_model.fit(temp_scaler.transform(x_tr_sub), y_binary)
+
+            x_val_sub = x_fail_sample.reshape(1, -1)[:, temp_indices]
+            pred = temp_model.predict(temp_scaler.transform(x_val_sub))[0]
+
+            if pred == y_true_binary:
+                feat_name = self.feature_names_list[idx_to_add]
+                # [수정됨] 모델 이름 명시
+                suggestions.append(f"[{failed_model_name}] Add '{feat_name}'")
+
+        if not suggestions:
+            return "No simple fix found"
+
+        return ", ".join(list(set(suggestions))[:3])
+    # ==========================================
+    # 실행 로직
+    # ==========================================
+
+
 def main():
     data_path = os.path.join(project_root, 'data')
     newdata_path = os.path.join(project_root, 'newdata')
+    test_size_n = 20
 
-    # 데이터 로드
     with suppress_stdout():
         x_old, y_old = load(data_path)
         x_new, y_new = load(newdata_path)
@@ -184,20 +319,24 @@ def main():
     if len(x_new) > 0:
         x_total_raw = x_old + x_new
         y_total = np.concatenate([y_old, y_new])
+        test_size_n = len(x_new)
+        print(f"Validation Size Set to: {test_size_n} (Matched to NewData size)")
     else:
         x_total_raw = x_old
         y_total = y_old
 
-    print(f"\n[데이터셋] 총 {len(y_total)}개 샘플")
-    print(f" -> 검증 시 노이즈 강도(Sigma) 단계: {NOISE_LEVELS}")
-    print(f" -> 각 단계별 샘플 복제 수: {VAL_COPY_N}개")
-    
-    sss = StratifiedShuffleSplit(n_splits=ITERATIONS, test_size=TEST_SIZE, random_state=42)
+    print(f"\nRobustness Test: {NOISE_MODE} Mode")
+    print(f" -> Levels: {STRESS_LEVELS}")
+    print(f" -> Configs to Test: {list(FEATURE_CONFIGS.keys())}")
+
+    sss = StratifiedShuffleSplit(n_splits=ITERATIONS, test_size=test_size_n, random_state=42)
     error_logs = []
 
+    with suppress_stdout():
+        _, all_feature_names = extractfeatures([x_total_raw[0]])
+
     for i, (train_idx, val_idx) in enumerate(sss.split(x_total_raw, y_total)):
-        
-        # [조건] 1회차 고정 분할
+
         if i == 0:
             if len(x_new) == 0: continue
             print(f"\n[Iter 1] Special Mode: Train(data) vs Val(newdata)")
@@ -209,89 +348,113 @@ def main():
             y_train = y_total[train_idx]
             val_real_indices = val_idx
 
-        # 1. 학습 (기본 증강만 적용)
         with suppress_stdout():
-            x_train_aug, y_train_aug = augmentdata(x_train_raw, y_train, n=TRAIN_AUG_N)
-            x_train_feat, _ = extractfeatures(x_train_aug)
+            x_aug, y_aug = augmentdata(x_train_raw, y_train, n=TRAIN_AUG_N)
+            x_feat_train, _ = extractfeatures(x_aug)
 
-        model = HybridClassifierRobustness(randomstate=42)
-        model.fit(x_train_feat, y_train_aug)
+        for conf_name, conf_data in FEATURE_CONFIGS.items():
+            model = HybridClassifierRobustness(
+                feature_config=conf_data,
+                feature_names_list=all_feature_names,
+                randomstate=42
+            )
+            model.fit(x_feat_train, y_aug)
 
-        print(f"[Iter {i+1}] Training Done. Starting Stress Test...")
+            for level in STRESS_LEVELS:
+                fails = 0
+                total_tests = 0
 
-        # 2. 검증 (노이즈 강도별 루프)
-        for noise_sigma in NOISE_LEVELS:
-            level_fail_count = 0
-            total_tests = 0
-            
-            for real_idx in val_real_indices:
-                single_x_raw = [x_total_raw[real_idx]]
-                single_y = np.array([y_total[real_idx]])
-                
-                # [핵심] 커스텀 노이즈 함수 사용 (강도 조절)
-                x_val_stress, y_val_stress = custom_noise_augment(
-                    single_x_raw, single_y, 
-                    n_copies=VAL_COPY_N, 
-                    noise_sigma=noise_sigma # 강도 적용
-                )
-                
-                # 피쳐 추출
-                with suppress_stdout():
-                    x_val_feat, _ = extractfeatures(x_val_stress)
-                
-                preds = model.predict(x_val_feat)
-                total_tests += len(preds)
-                
-                # 오류 분석
-                mismatch_indices = np.where(preds != y_val_stress)[0]
-                if len(mismatch_indices) > 0:
-                    level_fail_count += len(mismatch_indices)
-                    
-                    # 샘플당 1번만 상세 로그 (너무 많음 방지)
-                    err_idx = mismatch_indices[0]
-                    cause = model.diagnose(x_val_feat[err_idx], y_val_stress[err_idx])
-                    
-                    true_lbl = list(label.keys())[list(label.values()).index(y_val_stress[0])]
-                    error_logs.append({
-                        'Iter': i+1,
-                        'Noise_Sigma': noise_sigma,
-                        'Original_Index': real_idx,
-                        'True_Label': true_lbl,
-                        'Cause': cause
-                    })
-            
-            acc = 1.0 - (level_fail_count / total_tests)
-            print(f"   -> Noise {noise_sigma:.1f}: Acc {acc*100:.2f}% ({level_fail_count}/{total_tests} fails)")
+                for idx in val_real_indices:
+                    # 1. 노이즈
+                    x_val_noisy, y_val = custom_noise_augment(
+                        [x_total_raw[idx]], [y_total[idx]],
+                        VAL_COPY_N, level, NOISE_MODE
+                    )
 
-    # ==========================================
-    # 리포트 저장
-    # ==========================================
-    with open("robustness_intensity_report.txt", "w", encoding="utf-8") as f:
-        f.write("Noise Intensity Robustness Report\n")
-        f.write("=================================\n\n")
-        
+                    # 2. 전처리
+                    x_val_cleaned = []
+                    for traj in x_val_noisy:
+                        cleaned_traj = remove_spikes(traj, threshold_std=5.0)
+                        cleaned_traj = smooth_trajectory(cleaned_traj, window_size=3)
+                        x_val_cleaned.append(cleaned_traj)
+
+                    # 3. 예측
+                    with suppress_stdout():
+                        x_v_feat, _ = extractfeatures(x_val_cleaned)
+
+                    preds = model.predict(x_v_feat)
+                    total_tests += len(preds)
+
+                    if np.any(preds != y_val):
+                        fails += len(np.where(preds != y_val)[0])
+
+                        err_idx_in_batch = np.where(preds != y_val)[0][0]
+                        pred_label_code = preds[err_idx_in_batch]
+                        true_label_code = y_val[err_idx_in_batch]
+
+                        model_name, cause = model.diagnose(x_v_feat[err_idx_in_batch], true_label_code)
+
+                        suggestion = "N/A"
+                        if model_name != "Unknown":
+                            suggestion = model.suggest_fix(
+                                x_feat_train, y_aug,
+                                x_v_feat[err_idx_in_batch], true_label_code,
+                                model_name
+                            )
+
+                        true_lbl_str = inv_label[true_label_code]
+                        pred_lbl_str = inv_label[pred_label_code]
+
+                        error_logs.append({
+                            'Iter': i + 1,
+                            'Config': conf_name,
+                            'Mode': NOISE_MODE,
+                            'Level': level,
+                            'Sample_ID': idx,
+                            'Label': true_lbl_str,
+                            'Predicted': pred_lbl_str,
+                            'Cause': cause,
+                            'Suggestion': suggestion
+                        })
+
+                acc = 1.0 - (fails / total_tests)
+                print(f"   Iter {i + 1} | {conf_name:<10} | Lvl {level}: Acc {acc * 100:.1f}%")
+
+    with open("robustreport.txt", "w", encoding="utf-8") as f:
+        f.write("Robustness Report with Model-Specific Suggestions\n")
+        f.write("==================================================\n\n")
+
         if not error_logs:
-            f.write("PERFECT SCORE across all noise levels!\n")
-            print("\n모델이 모든 노이즈 단계에서 완벽하게 동작.")
+            f.write("PERFECT SCORE across all configs and levels!\n")
+            print("\n모든 설정에서 완벽하게 동작.")
         else:
             df = pd.DataFrame(error_logs)
-            
-            # 노이즈 레벨별 생존율 요약
-            f.write("[Failure Counts by Noise Level]\n")
-            f.write(df['Noise_Sigma'].value_counts().sort_index().to_string())
+
+            f.write("[Failure Counts by Config & Level]\n")
+            summary = df.groupby(['Config', 'Level']).size().unstack(fill_value=0)
+            f.write(summary.to_string())
             f.write("\n\n")
-            
-            # 주요 실패 원인
+
             f.write("[Top Failure Causes]\n")
             f.write(df['Cause'].value_counts().to_string())
             f.write("\n\n")
-            
-            # 취약한 클래스
-            f.write("[Most Vulnerable Classes]\n")
-            f.write(df['True_Label'].value_counts().to_string())
-            
-            print(f"\n총 {len(df)}건의 테스트 실패가 기록.")
-            print(f"'robustness_intensity_report.txt'를 확인.")
+
+            f.write("[Top Suggested Fixes]\n")
+            valid_suggestions = df[df['Suggestion'] != "No simple fix found"]['Suggestion']
+            if len(valid_suggestions) > 0:
+                f.write(valid_suggestions.value_counts().head(20).to_string())
+            else:
+                f.write("No effective feature changes found.")
+            f.write("\n\n")
+
+            f.write("[Detailed Error Log Sample (Top 50)]\n")
+            f.write(df[['Config', 'Level', 'Label', 'Predicted', 'Cause', 'Suggestion']].head(50).to_string())
+            f.write("\n\n* Full details are saved in 'robust_error_details.csv'")
+
+            df.to_csv("robust_error_details.csv", index=False, encoding='utf-8-sig')
+
+            print(f"\n총 {len(df)}건의 실패 기록.")
+
 
 if __name__ == "__main__":
     main()

@@ -49,10 +49,10 @@ class HybridClassifier:
         self.select_indices_model1 = [9, 11, 16] 
 
         # M2: Horizontal vs Rest (Line)
-        self.select_indices_model2 = [1, 2, 6, 7, 8]
+        self.select_indices_model2 = [1, 2, 6, 7, 8,17]
 
         # M3: Vertical vs Complex (Diagonal)
-        self.select_indices_model3 = [1, 2, 6, 7, 8]
+        self.select_indices_model3 = [1, 2, 6, 7, 8,17]
 
         # M4: Diagonal Left vs Right
         self.select_indices_model4 = [14, 15]

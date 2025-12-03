@@ -41,11 +41,14 @@ class HybridClassifier:
         self.cdr = label['diagonal_right']
         self.cho = label['horizontal']
         self.cve = label['vertical']
-        
-        self.select_indices_model1 = [9, 11, 16] 
-        self.select_indices_model2 = [1, 2, 6, 7, 8, 11]
-        self.select_indices_model3 = [1, 2, 6, 7, 8, 11]
-        self.select_indices_model4 = [14, 15]
+        self.select_indices_model1 =[9, 11, 16]
+        self.select_indices_model2 =[1,2,12,17]
+        self.select_indices_model3 =[1,6,7,17]
+        self.select_indices_model4 =[14,15]
+        #self.select_indices_model1 = [9, 11, 16]
+        #self.select_indices_model2 = [1,2,12,17]
+        #self.select_indices_model3 = [1,6,17]
+        #self.select_indices_model4 = [14,15, 6]
 
     def _filter_features(self, x, indices):
         return x[:, indices]
