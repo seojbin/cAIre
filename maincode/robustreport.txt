@@ -1,96 +1,49 @@
-Robustness Report with Model-Specific Suggestions
-==================================================
+Robustness Report
+=================
+
+[Feature Definitions by Configuration]
+Configuration: Baseline
+  - M1: ['efficiency', 'ratio_pca', 'xy_area', 'corr_xy', 'radius_ratio', 'deviation_max']
+  - M2: ['Y_iqr', 'Z_iqr', 'range_X', 'range_Y', 'range_Z', 'pca_z']
+  - M3: ['Y_iqr', 'Z_iqr', 'range_X', 'range_Y', 'range_Z', 'pca_z']
+  - M4: ['apex_vec_x', 'apex_vec_y']
+
+Configuration: Experimental_V1
+  - M1: ['efficiency', 'ratio_pca', 'xy_area', 'corr_xy', 'radius_ratio', 'line_fit_rmse', 'deviation_max']
+  - M2: ['Y_iqr', 'Z_iqr', 'range_X', 'range_Y', 'range_Z', 'pca_z']
+  - M3: ['Y_iqr', 'Z_iqr', 'range_X', 'range_Y', 'range_Z', 'pca_z']
+  - M4: ['corr_xy', 'apex_vec_x', 'apex_vec_y']
+
+--------------------------------------------------
 
 [Failure Counts by Config & Level]
-Level            3.0   5.0   10.0
-Config                           
-Baseline            0     8    68
-Experimental_V1     1    12    70
+Level            0.5
+Config              
+Baseline           3
+Experimental_V1    1
 
-[Top Failure Causes]
+[Top Failure Causes by Config]
+
+>> Configuration: Baseline
 Cause
-M1 (False Circle)     103
-M1 (Missed Circle)     29
-M3 (Missed Vert)       11
-M3 (False Vert)         6
-M2 (Missed Horiz)       4
-M4 (L->R Fail)          3
-M4 (R->L Fail)          3
+M1 (Missed Circle)    3
+
+>> Configuration: Experimental_V1
+Cause
+M1 (Missed Circle)    1
 
 [Top Suggested Fixes]
 Suggestion
-[M1] Remove 'xy_area'                                                                 9
-[M1] Add 'slope_xy', [M1] Add 'length', [M1] Add 'max_reach'                          4
-[M1] Remove 'efficiency'                                                              3
-[M1] Remove 'linearity_error', [M1] Remove 'ratio_pca', [M1] Add 'pca_z'              3
-[M1] Remove 'xy_area', [M1] Add 'range_Z', [M1] Add 'slope_xy'                        3
-[M1] Remove 'xy_area', [M1] Remove 'efficiency'                                       3
-[M1] Remove 'xy_area', [M1] Add 'range_Z', [M1] Remove 'linearity_error'              3
-[M1] Remove 'linearity_error', [M1] Remove 'ratio_pca'                                2
-[M1] Add 'slope_xy', [M1] Add 'length', [M1] Add 'range_X'                            2
-[M2] Add 'slope_xy', [M2] Add 'X_iqr', [M2] Remove 'Z_iqr'                            2
-[M1] Remove 'xy_area', [M1] Add 'pca_z'                                               2
-[M3] Remove 'Y_iqr', [M3] Add 'xy_area', [M3] Add 'corr_xy'                           2
-[M1] Add 'length', [M1] Remove 'xy_area', [M1] Remove 'efficiency'                    2
-[M1] Add 'length'                                                                     2
-[M1] Add 'length', [M1] Remove 'efficiency'                                           2
-[M2] Add 'X_iqr', [M2] Remove 'Z_iqr', [M2] Add 'radius_ratio'                        2
-[M1] Remove 'linearity_error', [M1] Remove 'ratio_pca', [M1] Remove 'radius_ratio'    2
-[M3] Remove 'range_Z', [M3] Add 'ratio_pca', [M3] Add 'linearity_error'               2
-[M4] Remove 'apex_vec_y'                                                              2
-[M1] Remove 'linearity_error', [M1] Add 'length', [M1] Add 'max_reach'                1
+[Baseline][M1] Remove 'radius_ratio', [Baseline][M1] Remove 'corr_xy'                                           1
+[Baseline][M1] Remove 'radius_ratio', [Baseline][M1] Remove 'efficiency', [Baseline][M1] Add 'line_fit_rmse'    1
+[Experimental_V1][M1] Remove 'efficiency', [Experimental_V1][M1] Remove 'radius_ratio'                          1
+[Baseline][M1] Remove 'radius_ratio', [Baseline][M1] Remove 'efficiency', [Baseline][M1] Add 'range_Y'          1
 
 [Detailed Error Log Sample (Top 50)]
-             Config  Level           Label       Predicted               Cause                                                                  Suggestion
-0          Baseline    5.0          circle        vertical  M1 (Missed Circle)      [M1] Remove 'linearity_error', [M1] Add 'length', [M1] Add 'max_reach'
-1          Baseline   10.0          circle  diagonal_right  M1 (Missed Circle)                                                         No simple fix found
-2          Baseline   10.0          circle   diagonal_left  M1 (Missed Circle)                      [M1] Remove 'linearity_error', [M1] Remove 'ratio_pca'
-3          Baseline   10.0          circle  diagonal_right  M1 (Missed Circle)                      [M1] Remove 'linearity_error', [M1] Remove 'ratio_pca'
-4          Baseline   10.0          circle   diagonal_left  M1 (Missed Circle)                                                         No simple fix found
-5          Baseline   10.0          circle        vertical  M1 (Missed Circle)                           [M1] Remove 'xy_area', [M1] Remove 'radius_ratio'
-6          Baseline   10.0   diagonal_left          circle   M1 (False Circle)           [M1] Add 'slope_xy', [M1] Add 'corr_xy', [M1] Remove 'efficiency'
-7          Baseline   10.0   diagonal_left        vertical     M3 (False Vert)             [M3] Remove 'pca_z', [M3] Add 'jerk_smooth', [M3] Add 'xy_area'
-8          Baseline   10.0   diagonal_left          circle   M1 (False Circle)                    [M1] Add 'Z_iqr', [M1] Add 'range_X', [M1] Add 'range_Z'
-9          Baseline   10.0  diagonal_right          circle   M1 (False Circle)                 [M1] Add 'range_Z', [M1] Add 'slope_xy', [M1] Add 'range_X'
-10         Baseline   10.0  diagonal_right        vertical     M3 (False Vert)                 [M3] Remove 'Y_iqr', [M3] Add 'xy_area', [M3] Add 'corr_xy'
-11         Baseline   10.0  diagonal_right        vertical     M3 (False Vert)                 [M3] Remove 'Y_iqr', [M3] Add 'xy_area', [M3] Add 'corr_xy'
-12         Baseline   10.0  diagonal_right          circle   M1 (False Circle)                 [M1] Add 'range_Z', [M1] Add 'length', [M1] Add 'max_reach'
-13         Baseline   10.0      horizontal          circle   M1 (False Circle)  [M1] Add 'range_Z', [M1] Remove 'linearity_error', [M1] Remove 'ratio_pca'
-14         Baseline   10.0      horizontal          circle   M1 (False Circle)      [M1] Add 'range_Z', [M1] Add 'slope_xy', [M1] Remove 'linearity_error'
-15         Baseline   10.0        vertical          circle   M1 (False Circle)                                                         No simple fix found
-16         Baseline   10.0        vertical          circle   M1 (False Circle)                                                         No simple fix found
-17  Experimental_V1    5.0          circle        vertical  M1 (Missed Circle)    [M1] Remove 'linearity_error', [M1] Remove 'ratio_pca', [M1] Add 'Y_iqr'
-18  Experimental_V1   10.0          circle        vertical  M1 (Missed Circle)    [M1] Remove 'xy_area', [M1] Add 'range_Z', [M1] Remove 'linearity_error'
-19  Experimental_V1   10.0          circle        vertical  M1 (Missed Circle)    [M1] Remove 'xy_area', [M1] Add 'range_Z', [M1] Remove 'linearity_error'
-20  Experimental_V1   10.0          circle   diagonal_left  M1 (Missed Circle)    [M1] Remove 'xy_area', [M1] Add 'range_Z', [M1] Remove 'linearity_error'
-21  Experimental_V1   10.0   diagonal_left          circle   M1 (False Circle)                    [M1] Add 'Z_iqr', [M1] Add 'range_Z', [M1] Add 'corr_xy'
-22  Experimental_V1   10.0   diagonal_left          circle   M1 (False Circle)                                                         No simple fix found
-23  Experimental_V1   10.0  diagonal_right          circle   M1 (False Circle)                                                         No simple fix found
-24  Experimental_V1   10.0  diagonal_right          circle   M1 (False Circle)                                                         No simple fix found
-25  Experimental_V1   10.0  diagonal_right          circle   M1 (False Circle)                                                         No simple fix found
-26  Experimental_V1   10.0  diagonal_right          circle   M1 (False Circle)                                                            [M1] Add 'Z_iqr'
-27  Experimental_V1   10.0  diagonal_right   diagonal_left      M4 (R->L Fail)                                                    [M4] Remove 'apex_vec_y'
-28  Experimental_V1   10.0      horizontal          circle   M1 (False Circle)             [M1] Add 'length', [M1] Add 'range_Z', [M1] Remove 'efficiency'
-29  Experimental_V1   10.0        vertical          circle   M1 (False Circle)                                  [M1] Add 'X_iqr', [M1] Remove 'efficiency'
-30  Experimental_V1   10.0        vertical          circle   M1 (False Circle)                                                    [M1] Remove 'efficiency'
-31  Experimental_V1   10.0        vertical          circle   M1 (False Circle)                                                          [M1] Add 'corr_xy'
-32         Baseline    5.0   diagonal_left          circle   M1 (False Circle)                                                       [M1] Remove 'xy_area'
-33         Baseline    5.0          circle        vertical  M1 (Missed Circle)                                                  [M1] Remove 'radius_ratio'
-34         Baseline   10.0   diagonal_left  diagonal_right      M4 (L->R Fail)    [M4] Add 'linearity_error', [M4] Add 'range_X', [M4] Remove 'apex_vec_y'
-35         Baseline   10.0  diagonal_right          circle   M1 (False Circle)                                                         No simple fix found
-36         Baseline   10.0      horizontal   diagonal_left   M2 (Missed Horiz)              [M2] Add 'X_iqr', [M2] Remove 'Z_iqr', [M2] Add 'radius_ratio'
-37         Baseline   10.0  diagonal_right          circle   M1 (False Circle)              [M1] Remove 'xy_area', [M1] Add 'range_Z', [M1] Add 'slope_xy'
-38         Baseline   10.0   diagonal_left          circle   M1 (False Circle)                             [M1] Remove 'xy_area', [M1] Remove 'efficiency'
-39         Baseline   10.0   diagonal_left          circle   M1 (False Circle)                                                         No simple fix found
-40         Baseline   10.0      horizontal   diagonal_left   M2 (Missed Horiz)              [M2] Add 'X_iqr', [M2] Remove 'Z_iqr', [M2] Add 'radius_ratio'
-41         Baseline   10.0        vertical          circle   M1 (False Circle)                                                       [M1] Remove 'xy_area'
-42         Baseline   10.0  diagonal_right          circle   M1 (False Circle)                                                         No simple fix found
-43         Baseline   10.0        vertical   diagonal_left    M3 (Missed Vert)                                                         No simple fix found
-44         Baseline   10.0          circle   diagonal_left  M1 (Missed Circle)    [M1] Remove 'linearity_error', [M1] Remove 'ratio_pca', [M1] Add 'pca_z'
-45         Baseline   10.0          circle        vertical  M1 (Missed Circle)                                                         No simple fix found
-46         Baseline   10.0          circle  diagonal_right  M1 (Missed Circle)    [M1] Remove 'linearity_error', [M1] Remove 'ratio_pca', [M1] Add 'pca_z'
-47  Experimental_V1    5.0   diagonal_left          circle   M1 (False Circle)        [M1] Remove 'xy_area', [M1] Remove 'efficiency', [M1] Add 'slope_xy'
-48  Experimental_V1   10.0   diagonal_left          circle   M1 (False Circle)          [M1] Add 'length', [M1] Remove 'xy_area', [M1] Remove 'efficiency'
-49  Experimental_V1   10.0      horizontal          circle   M1 (False Circle)                  [M1] Add 'range_Z', [M1] Add 'slope_xy', [M1] Add 'length'
+            Config  Level   Label      Predicted               Cause Failed_Model                                                                                      Active_Features                                                                                                    Suggestion
+0         Baseline    0.5  circle       vertical  M1 (Missed Circle)           M1                   ['efficiency', 'ratio_pca', 'xy_area', 'corr_xy', 'radius_ratio', 'deviation_max']                                         [Baseline][M1] Remove 'radius_ratio', [Baseline][M1] Remove 'corr_xy'
+1         Baseline    0.5  circle  diagonal_left  M1 (Missed Circle)           M1                   ['efficiency', 'ratio_pca', 'xy_area', 'corr_xy', 'radius_ratio', 'deviation_max']  [Baseline][M1] Remove 'radius_ratio', [Baseline][M1] Remove 'efficiency', [Baseline][M1] Add 'line_fit_rmse'
+2  Experimental_V1    0.5  circle  diagonal_left  M1 (Missed Circle)           M1  ['efficiency', 'ratio_pca', 'xy_area', 'corr_xy', 'radius_ratio', 'line_fit_rmse', 'deviation_max']                        [Experimental_V1][M1] Remove 'efficiency', [Experimental_V1][M1] Remove 'radius_ratio'
+3         Baseline    0.5  circle       vertical  M1 (Missed Circle)           M1                   ['efficiency', 'ratio_pca', 'xy_area', 'corr_xy', 'radius_ratio', 'deviation_max']        [Baseline][M1] Remove 'radius_ratio', [Baseline][M1] Remove 'efficiency', [Baseline][M1] Add 'range_Y'
 
 * Full details are saved in 'robust_error_details.csv'

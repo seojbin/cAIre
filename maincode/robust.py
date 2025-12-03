@@ -10,45 +10,40 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import accuracy_score
 from scipy.spatial.transform import Rotation as R
 
-# ==========================================
-# 1. 테스트 설정
-# ==========================================
-NOISE_MODE = 'DRIFT'  # 'GAUSSIAN', 'SPIKE', 'DRIFT', 'ROTATION'
+NOISE_MODE = 'LINEAR_DRIFT'
 
 if NOISE_MODE == 'GAUSSIAN':
     STRESS_LEVELS = [10.0, 30.0, 50.0, 100.0]
 elif NOISE_MODE == 'SPIKE':
     STRESS_LEVELS = [100.0, 500.0, 1000.0, 2000.0]
 elif NOISE_MODE == 'DRIFT':
-    STRESS_LEVELS = [1.0, 3.0, 5.0, 10.0]
+    STRESS_LEVELS = [1.0, 3.0, 5.0]
 elif NOISE_MODE == 'ROTATION':
-    STRESS_LEVELS = [5.0, 15.0, 30.0, 45.0]
+    STRESS_LEVELS = [5.0, 15.0, 30.0, 40.0]
+elif NOISE_MODE == 'BIAS':
+    STRESS_LEVELS = [20.0, 50.0, 100.0, 200.0]
+elif NOISE_MODE == 'LINEAR_DRIFT':
+    STRESS_LEVELS = [0.5]
 
 VAL_COPY_N = 10
 TRAIN_AUG_N = 9
 ITERATIONS = 5
 
-# ==========================================
-# 2. 피쳐 세트 설정
-# ==========================================
 FEATURE_CONFIGS = {
     "Baseline": {
-        "M1": [5, 9, 11, 16, 18],
-        "M2": [1, 2, 8, 17],
-        "M3": [1, 6, 7, 8, 17],
+        "M1": [5, 9, 11, 13, 17, 20],
+        "M2": [1, 2, 6, 7, 8, 18],
+        "M3": [1, 2, 6, 7, 8, 18],
         "M4": [14, 15]
     },
     "Experimental_V1": {
-        "M1": [5, 9, 11, 16, 18],
-        "M2": [1, 2, 7, 8, 17],
-        "M3": [1, 2, 6, 7, 8, 17],
-        "M4": [14, 15]
+        "M1": [5, 9, 11, 13, 17, 19, 20],
+        "M2": [1, 2, 6, 7, 8,18],
+        "M3": [1, 2, 6, 7, 8, 18],
+        "M4": [13, 14, 15]
     },
 }
 
-# ==========================================
-# 환경 설정 및 임포트
-# ==========================================
 current = os.path.abspath(__file__)
 script_dir = os.path.dirname(current)
 project_root = os.path.dirname(script_dir)
@@ -58,11 +53,10 @@ try:
     from postprocess.preprocess import load, label, augmentdata, remove_spikes, smooth_trajectory
     from postprocess.feature_extractor import extractfeatures
 except ImportError:
-    print("오류: 전처리 파일(postprocess 패키지) 없음")
+    print("Error: Postprocess package not found.")
     exit()
 
 inv_label = {v: k for k, v in label.items()}
-
 
 @contextlib.contextmanager
 def suppress_stdout():
@@ -74,10 +68,6 @@ def suppress_stdout():
         finally:
             sys.stdout = old
 
-
-# ==========================================
-# 노이즈 생성 함수
-# ==========================================
 def custom_noise_augment(x_raw, y_raw, n_copies, level, mode):
     aug_x = []
     aug_y = []
@@ -86,6 +76,7 @@ def custom_noise_augment(x_raw, y_raw, n_copies, level, mode):
         aug_y.append(lbl)
         for _ in range(n_copies):
             new_traj = traj.copy()
+            
             if mode == 'GAUSSIAN':
                 noise = np.random.normal(loc=0.0, scale=level, size=traj.shape)
                 new_traj += noise
@@ -105,19 +96,27 @@ def custom_noise_augment(x_raw, y_raw, n_copies, level, mode):
                 c, s = np.cos(angle_rad), np.sin(angle_rad)
                 R_z = np.array([[c, -s, 0], [s, c, 0], [0, 0, 1]])
                 new_traj = np.dot(new_traj, R_z.T)
+            elif mode == 'BIAS':
+                offset = np.random.normal(loc=0.0, scale=level, size=(1, 3))
+                new_traj += offset
+            elif mode == 'LINEAR_DRIFT':
+                drift_dir = np.random.normal(size=(1, 3))
+                drift_dir /= np.linalg.norm(drift_dir)
+                steps = np.arange(len(traj)).reshape(-1, 1)
+                directional_error = steps * (drift_dir * level)
+                new_traj += directional_error
+                
             aug_x.append(new_traj)
             aug_y.append(lbl)
+            
     return aug_x, np.array(aug_y)
 
-
-# ==========================================
-# 모델 클래스 (피쳐 진단 기능 추가)
-# ==========================================
 class HybridClassifierRobustness:
-    def __init__(self, feature_config, feature_names_list, randomstate=42):
+    def __init__(self, feature_config, feature_names_list, config_name="Unknown", randomstate=42):
         self.randomstate = randomstate
-        self.feature_names_list = feature_names_list  # 전체 피쳐 이름 목록
+        self.feature_names_list = feature_names_list
         self.total_feature_count = len(feature_names_list)
+        self.config_name = config_name
 
         self.scaler1 = StandardScaler()
         self.scaler2 = StandardScaler()
@@ -172,29 +171,38 @@ class HybridClassifierRobustness:
 
     def predict(self, x):
         ypred = np.zeros(len(x), dtype=int)
+        
         x_f1 = self._filter_features(x, self.select_indices_model1)
         p1 = self.model1.predict(self.scaler1.transform(x_f1))
         ypred[p1 == 0] = self.cid
+        
         rest_idx = np.where(p1 == 1)[0]
         if len(rest_idx) == 0: return ypred
 
         x_rest = x[rest_idx]
         x_f2 = self._filter_features(x_rest, self.select_indices_model2)
         p2 = self.model2.predict(self.scaler2.transform(x_f2))
-        ypred[rest_idx[p2 == 0]] = self.cho
+        
+        h_idx = rest_idx[p2 == 0]
+        ypred[h_idx] = self.cho
+        
         rest_idx2 = rest_idx[p2 == 1]
         if len(rest_idx2) == 0: return ypred
 
         x_rest2 = x[rest_idx2]
         x_f3 = self._filter_features(x_rest2, self.select_indices_model3)
         p3 = self.model3.predict(self.scaler3.transform(x_f3))
-        ypred[rest_idx2[p3 == 0]] = self.cve
+        
+        v_idx = rest_idx2[p3 == 0]
+        ypred[v_idx] = self.cve
+        
         diag_idx = rest_idx2[p3 == 1]
         if len(diag_idx) == 0: return ypred
 
         x_diag = x[diag_idx]
         x_f4 = self._filter_features(x_diag, self.select_indices_model4)
         p4 = self.model4.predict(self.scaler4.transform(x_f4))
+        
         for i, val in enumerate(p4):
             ypred[diag_idx[i]] = self.cdl if val == 0 else self.cdr
         return ypred
@@ -222,13 +230,11 @@ class HybridClassifierRobustness:
     def suggest_fix(self, x_train_full, y_train_full, x_fail_sample, y_fail_true, failed_model_name):
         suggestions = []
 
-        # 1. 대상 모델 데이터 준비
         if failed_model_name == "M1":
             target_indices = self.select_indices_model1
             x_train = x_train_full
             y_binary = np.where(y_train_full == self.cid, 0, 1)
             y_true_binary = 0 if y_fail_true == self.cid else 1
-
         elif failed_model_name == "M2":
             mask = y_train_full != self.cid
             if np.sum(mask) == 0: return "No Data"
@@ -236,7 +242,6 @@ class HybridClassifierRobustness:
             y_binary = np.where(y_train_full[mask] == self.cho, 0, 1)
             y_true_binary = 0 if y_fail_true == self.cho else 1
             target_indices = self.select_indices_model2
-
         elif failed_model_name == "M3":
             mask = (y_train_full != self.cid) & (y_train_full != self.cho)
             if np.sum(mask) == 0: return "No Data"
@@ -244,7 +249,6 @@ class HybridClassifierRobustness:
             y_binary = np.where(y_train_full[mask] == self.cve, 0, 1)
             y_true_binary = 0 if y_fail_true == self.cve else 1
             target_indices = self.select_indices_model3
-
         elif failed_model_name == "M4":
             mask = (y_train_full != self.cid) & (y_train_full != self.cho) & (y_train_full != self.cve)
             if np.sum(mask) == 0: return "No Data"
@@ -255,7 +259,7 @@ class HybridClassifierRobustness:
         else:
             return "Unknown Model"
 
-        # 2. Case A: 피쳐 하나 빼보기 (Removal Test)
+        # Removal Test
         for idx_to_remove in target_indices:
             temp_indices = [i for i in target_indices if i != idx_to_remove]
             if not temp_indices: continue
@@ -272,10 +276,9 @@ class HybridClassifierRobustness:
 
             if pred == y_true_binary:
                 feat_name = self.feature_names_list[idx_to_remove]
-                # [수정됨] 모델 이름 명시
-                suggestions.append(f"[{failed_model_name}] Remove '{feat_name}'")
+                suggestions.append(f"[{self.config_name}][{failed_model_name}] Remove '{feat_name}'")
 
-        # 3. Case B: 피쳐 하나 더해보기 (Addition Test)
+        # Addition Test
         all_indices = set(range(self.total_feature_count))
         current_indices_set = set(target_indices)
         candidate_indices = list(all_indices - current_indices_set)
@@ -295,16 +298,12 @@ class HybridClassifierRobustness:
 
             if pred == y_true_binary:
                 feat_name = self.feature_names_list[idx_to_add]
-                # [수정됨] 모델 이름 명시
-                suggestions.append(f"[{failed_model_name}] Add '{feat_name}'")
+                suggestions.append(f"[{self.config_name}][{failed_model_name}] Add '{feat_name}'")
 
         if not suggestions:
             return "No simple fix found"
 
         return ", ".join(list(set(suggestions))[:3])
-    # ==========================================
-    # 실행 로직
-    # ==========================================
 
 
 def main():
@@ -356,6 +355,7 @@ def main():
             model = HybridClassifierRobustness(
                 feature_config=conf_data,
                 feature_names_list=all_feature_names,
+                config_name=conf_name,
                 randomstate=42
             )
             model.fit(x_feat_train, y_aug)
@@ -365,20 +365,20 @@ def main():
                 total_tests = 0
 
                 for idx in val_real_indices:
-                    # 1. 노이즈
+                    # Noise Injection
                     x_val_noisy, y_val = custom_noise_augment(
                         [x_total_raw[idx]], [y_total[idx]],
                         VAL_COPY_N, level, NOISE_MODE
                     )
 
-                    # 2. 전처리
+                    # Preprocessing
                     x_val_cleaned = []
                     for traj in x_val_noisy:
                         cleaned_traj = remove_spikes(traj, threshold_std=5.0)
                         cleaned_traj = smooth_trajectory(cleaned_traj, window_size=3)
                         x_val_cleaned.append(cleaned_traj)
 
-                    # 3. 예측
+                    # Prediction
                     with suppress_stdout():
                         x_v_feat, _ = extractfeatures(x_val_cleaned)
 
@@ -393,6 +393,21 @@ def main():
                         true_label_code = y_val[err_idx_in_batch]
 
                         model_name, cause = model.diagnose(x_v_feat[err_idx_in_batch], true_label_code)
+
+                        # Determine active features for the failed model
+                        failed_model_features = "Unknown"
+                        if model_name == "M1":
+                            feat_indices = conf_data["M1"]
+                            failed_model_features = [all_feature_names[fi] for fi in feat_indices]
+                        elif model_name == "M2":
+                            feat_indices = conf_data["M2"]
+                            failed_model_features = [all_feature_names[fi] for fi in feat_indices]
+                        elif model_name == "M3":
+                            feat_indices = conf_data["M3"]
+                            failed_model_features = [all_feature_names[fi] for fi in feat_indices]
+                        elif model_name == "M4":
+                            feat_indices = conf_data["M4"]
+                            failed_model_features = [all_feature_names[fi] for fi in feat_indices]
 
                         suggestion = "N/A"
                         if model_name != "Unknown":
@@ -414,19 +429,30 @@ def main():
                             'Label': true_lbl_str,
                             'Predicted': pred_lbl_str,
                             'Cause': cause,
+                            'Failed_Model': model_name,
+                            'Active_Features': str(failed_model_features),
                             'Suggestion': suggestion
                         })
 
                 acc = 1.0 - (fails / total_tests)
-                print(f"   Iter {i + 1} | {conf_name:<10} | Lvl {level}: Acc {acc * 100:.1f}%")
+                print(f"   Iter {i + 1} | {conf_name:<15} | Lvl {level}: Acc {acc * 100:.1f}%")
 
     with open("robustreport.txt", "w", encoding="utf-8") as f:
-        f.write("Robustness Report with Model-Specific Suggestions\n")
-        f.write("==================================================\n\n")
+        f.write("Robustness Report\n")
+        f.write("=================\n\n")
+
+        f.write("[Feature Definitions by Configuration]\n")
+        for c_name, c_cfg in FEATURE_CONFIGS.items():
+            f.write(f"Configuration: {c_name}\n")
+            for m_key, m_indices in c_cfg.items():
+                m_feat_names = [all_feature_names[i] for i in m_indices]
+                f.write(f"  - {m_key}: {m_feat_names}\n")
+            f.write("\n")
+        f.write("-" * 50 + "\n\n")
 
         if not error_logs:
             f.write("PERFECT SCORE across all configs and levels!\n")
-            print("\n모든 설정에서 완벽하게 동작.")
+            print("\nAll configurations operated successfully.")
         else:
             df = pd.DataFrame(error_logs)
 
@@ -435,9 +461,13 @@ def main():
             f.write(summary.to_string())
             f.write("\n\n")
 
-            f.write("[Top Failure Causes]\n")
-            f.write(df['Cause'].value_counts().to_string())
-            f.write("\n\n")
+            f.write("[Top Failure Causes by Config]\n")
+            for conf in df['Config'].unique():
+                f.write(f"\n>> Configuration: {conf}\n")
+                subset = df[df['Config'] == conf]
+                f.write(subset['Cause'].value_counts().to_string())
+                f.write("\n")
+            f.write("\n")
 
             f.write("[Top Suggested Fixes]\n")
             valid_suggestions = df[df['Suggestion'] != "No simple fix found"]['Suggestion']
@@ -448,12 +478,14 @@ def main():
             f.write("\n\n")
 
             f.write("[Detailed Error Log Sample (Top 50)]\n")
-            f.write(df[['Config', 'Level', 'Label', 'Predicted', 'Cause', 'Suggestion']].head(50).to_string())
+            # Reordered columns to show model info and features
+            cols_to_show = ['Config', 'Level', 'Label', 'Predicted', 'Cause', 'Failed_Model', 'Active_Features', 'Suggestion']
+            f.write(df[cols_to_show].head(50).to_string())
             f.write("\n\n* Full details are saved in 'robust_error_details.csv'")
 
             df.to_csv("robust_error_details.csv", index=False, encoding='utf-8-sig')
 
-            print(f"\n총 {len(df)}건의 실패 기록.")
+            print(f"\nTotal failure records: {len(df)}")
 
 
 if __name__ == "__main__":
