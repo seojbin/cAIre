@@ -10,10 +10,16 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import accuracy_score
 from scipy.spatial.transform import Rotation as R
 
-NOISE_MODE = 'LINEAR_DRIFT'
+# =========================================================
+#  CONFIGURATION
+# =========================================================
+
+# 테스트할 노이즈 모드 선택
+# 옵션: 'GAUSSIAN', 'SPIKE', 'DRIFT', 'ROTATION', 'BIAS', 'LINEAR_DRIFT', 'LINEAR_DISTORTION'
+NOISE_MODE = 'LINEAR_DRIFT' 
 
 if NOISE_MODE == 'GAUSSIAN':
-    STRESS_LEVELS = [10.0, 30.0, 50.0, 100.0]
+    STRESS_LEVELS = [10.0, 30.0, 50.0]
 elif NOISE_MODE == 'SPIKE':
     STRESS_LEVELS = [100.0, 500.0, 1000.0, 2000.0]
 elif NOISE_MODE == 'DRIFT':
@@ -23,7 +29,12 @@ elif NOISE_MODE == 'ROTATION':
 elif NOISE_MODE == 'BIAS':
     STRESS_LEVELS = [20.0, 50.0, 100.0, 200.0]
 elif NOISE_MODE == 'LINEAR_DRIFT':
-    STRESS_LEVELS = [0.5]
+    # 기존: 직선형 이탈
+    STRESS_LEVELS = [0.5, 1.0, 2.0]
+elif NOISE_MODE == 'LINEAR_DISTORTION':
+    # [NEW] 곡선형 왜곡 (활처럼 휨)
+    # 데이터 스케일(500) 대비 약 2%(10) ~ 10%(50) 수준의 왜곡
+    STRESS_LEVELS = [100.0, 200.0, 300.0]
 
 VAL_COPY_N = 10
 TRAIN_AUG_N = 9
@@ -31,15 +42,15 @@ ITERATIONS = 5
 
 FEATURE_CONFIGS = {
     "Baseline": {
-        "M1": [5, 9, 11, 13, 17, 20],
+        "M1": [5, 9, 11, 13, 17, 19, 20],
         "M2": [1, 2, 6, 7, 8, 18],
         "M3": [1, 2, 6, 7, 8, 18],
         "M4": [14, 15]
     },
     "Experimental_V1": {
         "M1": [5, 9, 11, 13, 17, 19, 20],
-        "M2": [1, 2, 6, 7, 8,18],
-        "M3": [1, 2, 6, 7, 8, 18],
+        "M2": [1, 2, 6, 7, 8, 16, 18],
+        "M3": [1, 2, 6, 7, 8, 16, 18],
         "M4": [13, 14, 15]
     },
 }
@@ -80,6 +91,7 @@ def custom_noise_augment(x_raw, y_raw, n_copies, level, mode):
             if mode == 'GAUSSIAN':
                 noise = np.random.normal(loc=0.0, scale=level, size=traj.shape)
                 new_traj += noise
+
             elif mode == 'SPIKE':
                 n_points = len(traj)
                 n_spikes = np.random.randint(1, 4)
@@ -87,24 +99,46 @@ def custom_noise_augment(x_raw, y_raw, n_copies, level, mode):
                 for idx in spike_indices:
                     direction = np.random.randn(3)
                     new_traj[idx] += direction * level
+
             elif mode == 'DRIFT':
+                # Random Walk
                 drift_step = np.random.normal(loc=0.0, scale=level, size=traj.shape)
                 drift = np.cumsum(drift_step, axis=0)
                 new_traj += drift
+
             elif mode == 'ROTATION':
                 angle_rad = np.radians(np.random.uniform(-level, level))
                 c, s = np.cos(angle_rad), np.sin(angle_rad)
                 R_z = np.array([[c, -s, 0], [s, c, 0], [0, 0, 1]])
                 new_traj = np.dot(new_traj, R_z.T)
+
             elif mode == 'BIAS':
                 offset = np.random.normal(loc=0.0, scale=level, size=(1, 3))
                 new_traj += offset
+
             elif mode == 'LINEAR_DRIFT':
+                # Straight Line Drift (선형 이탈)
                 drift_dir = np.random.normal(size=(1, 3))
-                drift_dir /= np.linalg.norm(drift_dir)
+                drift_dir /= (np.linalg.norm(drift_dir) + 1e-6)
                 steps = np.arange(len(traj)).reshape(-1, 1)
                 directional_error = steps * (drift_dir * level)
                 new_traj += directional_error
+
+            elif mode == 'LINEAR_DISTORTION':
+                # [NEW] Curvilinear Distortion (활처럼 휘는 왜곡)
+                n_points = len(traj)
+                drift_dir = np.random.normal(size=(1, 3))
+                drift_dir /= (np.linalg.norm(drift_dir) + 1e-6)
+                
+                # 0~1 사이로 정규화된 step 생성
+                steps = np.linspace(0, 1, n_points).reshape(-1, 1)
+                
+                # [핵심] 제곱을 통해 시작점은 유지하고 끝부분으로 갈수록 휘어지게 만듦 (Quadratic)
+                steps = steps ** 2 
+                
+                # level은 끝점이 이동할 최대 거리 (예: 30.0)
+                distortion = steps * (drift_dir * level)
+                new_traj += distortion
                 
             aug_x.append(new_traj)
             aug_y.append(lbl)
@@ -112,21 +146,22 @@ def custom_noise_augment(x_raw, y_raw, n_copies, level, mode):
     return aug_x, np.array(aug_y)
 
 class HybridClassifierRobustness:
-    def __init__(self, feature_config, feature_names_list, config_name="Unknown", randomstate=42):
+    def __init__(self, feature_config, feature_names_list, kernel='linear', config_name="Unknown", randomstate=42):
         self.randomstate = randomstate
         self.feature_names_list = feature_names_list
         self.total_feature_count = len(feature_names_list)
         self.config_name = config_name
+        self.kernel = kernel
 
         self.scaler1 = StandardScaler()
         self.scaler2 = StandardScaler()
         self.scaler3 = StandardScaler()
         self.scaler4 = StandardScaler()
 
-        self.model1 = SVC(kernel='linear', random_state=randomstate, class_weight='balanced')
-        self.model2 = SVC(kernel='linear', random_state=randomstate, class_weight='balanced')
-        self.model3 = SVC(kernel='linear', random_state=randomstate, class_weight='balanced')
-        self.model4 = SVC(kernel='linear', random_state=randomstate, class_weight='balanced')
+        self.model1 = SVC(kernel=kernel, random_state=randomstate, class_weight='balanced')
+        self.model2 = SVC(kernel=kernel, random_state=randomstate, class_weight='balanced')
+        self.model3 = SVC(kernel=kernel, random_state=randomstate, class_weight='balanced')
+        self.model4 = SVC(kernel=kernel, random_state=randomstate, class_weight='balanced')
 
         self.cid = label['circle']
         self.cdl = label['diagonal_left']
@@ -265,7 +300,7 @@ class HybridClassifierRobustness:
             if not temp_indices: continue
 
             temp_scaler = StandardScaler()
-            temp_model = SVC(kernel='linear', random_state=self.randomstate, class_weight='balanced')
+            temp_model = SVC(kernel=self.kernel, random_state=self.randomstate, class_weight='balanced')
 
             x_tr_sub = x_train[:, temp_indices]
             temp_scaler.fit(x_tr_sub)
@@ -287,7 +322,7 @@ class HybridClassifierRobustness:
             temp_indices = target_indices + [idx_to_add]
 
             temp_scaler = StandardScaler()
-            temp_model = SVC(kernel='linear', random_state=self.randomstate, class_weight='balanced')
+            temp_model = SVC(kernel=self.kernel, random_state=self.randomstate, class_weight='balanced')
 
             x_tr_sub = x_train[:, temp_indices]
             temp_scaler.fit(x_tr_sub)
@@ -351,91 +386,95 @@ def main():
             x_aug, y_aug = augmentdata(x_train_raw, y_train, n=TRAIN_AUG_N)
             x_feat_train, _ = extractfeatures(x_aug)
 
-        for conf_name, conf_data in FEATURE_CONFIGS.items():
-            model = HybridClassifierRobustness(
-                feature_config=conf_data,
-                feature_names_list=all_feature_names,
-                config_name=conf_name,
-                randomstate=42
-            )
-            model.fit(x_feat_train, y_aug)
+        # Loop through Kernels
+        for kernel_type in ['linear']:
+            for conf_name, conf_data in FEATURE_CONFIGS.items():
+                model = HybridClassifierRobustness(
+                    feature_config=conf_data,
+                    feature_names_list=all_feature_names,
+                    kernel=kernel_type,
+                    config_name=conf_name,
+                    randomstate=42
+                )
+                model.fit(x_feat_train, y_aug)
 
-            for level in STRESS_LEVELS:
-                fails = 0
-                total_tests = 0
+                for level in STRESS_LEVELS:
+                    fails = 0
+                    total_tests = 0
 
-                for idx in val_real_indices:
-                    # Noise Injection
-                    x_val_noisy, y_val = custom_noise_augment(
-                        [x_total_raw[idx]], [y_total[idx]],
-                        VAL_COPY_N, level, NOISE_MODE
-                    )
+                    for idx in val_real_indices:
+                        # Noise Injection
+                        x_val_noisy, y_val = custom_noise_augment(
+                            [x_total_raw[idx]], [y_total[idx]],
+                            VAL_COPY_N, level, NOISE_MODE
+                        )
 
-                    # Preprocessing
-                    x_val_cleaned = []
-                    for traj in x_val_noisy:
-                        cleaned_traj = remove_spikes(traj, threshold_std=5.0)
-                        cleaned_traj = smooth_trajectory(cleaned_traj, window_size=3)
-                        x_val_cleaned.append(cleaned_traj)
+                        # Preprocessing
+                        x_val_cleaned = []
+                        for traj in x_val_noisy:
+                            cleaned_traj = remove_spikes(traj, threshold_std=5.0)
+                            cleaned_traj = smooth_trajectory(cleaned_traj, window_size=3)
+                            x_val_cleaned.append(cleaned_traj)
 
-                    # Prediction
-                    with suppress_stdout():
-                        x_v_feat, _ = extractfeatures(x_val_cleaned)
+                        # Prediction
+                        with suppress_stdout():
+                            x_v_feat, _ = extractfeatures(x_val_cleaned)
 
-                    preds = model.predict(x_v_feat)
-                    total_tests += len(preds)
+                        preds = model.predict(x_v_feat)
+                        total_tests += len(preds)
 
-                    if np.any(preds != y_val):
-                        fails += len(np.where(preds != y_val)[0])
+                        if np.any(preds != y_val):
+                            fails += len(np.where(preds != y_val)[0])
 
-                        err_idx_in_batch = np.where(preds != y_val)[0][0]
-                        pred_label_code = preds[err_idx_in_batch]
-                        true_label_code = y_val[err_idx_in_batch]
+                            err_idx_in_batch = np.where(preds != y_val)[0][0]
+                            pred_label_code = preds[err_idx_in_batch]
+                            true_label_code = y_val[err_idx_in_batch]
 
-                        model_name, cause = model.diagnose(x_v_feat[err_idx_in_batch], true_label_code)
+                            model_name, cause = model.diagnose(x_v_feat[err_idx_in_batch], true_label_code)
 
-                        # Determine active features for the failed model
-                        failed_model_features = "Unknown"
-                        if model_name == "M1":
-                            feat_indices = conf_data["M1"]
-                            failed_model_features = [all_feature_names[fi] for fi in feat_indices]
-                        elif model_name == "M2":
-                            feat_indices = conf_data["M2"]
-                            failed_model_features = [all_feature_names[fi] for fi in feat_indices]
-                        elif model_name == "M3":
-                            feat_indices = conf_data["M3"]
-                            failed_model_features = [all_feature_names[fi] for fi in feat_indices]
-                        elif model_name == "M4":
-                            feat_indices = conf_data["M4"]
-                            failed_model_features = [all_feature_names[fi] for fi in feat_indices]
+                            # Determine active features for the failed model
+                            failed_model_features = "Unknown"
+                            if model_name == "M1":
+                                feat_indices = conf_data["M1"]
+                                failed_model_features = [all_feature_names[fi] for fi in feat_indices]
+                            elif model_name == "M2":
+                                feat_indices = conf_data["M2"]
+                                failed_model_features = [all_feature_names[fi] for fi in feat_indices]
+                            elif model_name == "M3":
+                                feat_indices = conf_data["M3"]
+                                failed_model_features = [all_feature_names[fi] for fi in feat_indices]
+                            elif model_name == "M4":
+                                feat_indices = conf_data["M4"]
+                                failed_model_features = [all_feature_names[fi] for fi in feat_indices]
 
-                        suggestion = "N/A"
-                        if model_name != "Unknown":
-                            suggestion = model.suggest_fix(
-                                x_feat_train, y_aug,
-                                x_v_feat[err_idx_in_batch], true_label_code,
-                                model_name
-                            )
+                            suggestion = "N/A"
+                            if model_name != "Unknown":
+                                suggestion = model.suggest_fix(
+                                    x_feat_train, y_aug,
+                                    x_v_feat[err_idx_in_batch], true_label_code,
+                                    model_name
+                                )
 
-                        true_lbl_str = inv_label[true_label_code]
-                        pred_lbl_str = inv_label[pred_label_code]
+                            true_lbl_str = inv_label[true_label_code]
+                            pred_lbl_str = inv_label[pred_label_code]
 
-                        error_logs.append({
-                            'Iter': i + 1,
-                            'Config': conf_name,
-                            'Mode': NOISE_MODE,
-                            'Level': level,
-                            'Sample_ID': idx,
-                            'Label': true_lbl_str,
-                            'Predicted': pred_lbl_str,
-                            'Cause': cause,
-                            'Failed_Model': model_name,
-                            'Active_Features': str(failed_model_features),
-                            'Suggestion': suggestion
-                        })
+                            error_logs.append({
+                                'Iter': i + 1,
+                                'Config': conf_name,
+                                'Kernel': kernel_type,
+                                'Mode': NOISE_MODE,
+                                'Level': level,
+                                'Sample_ID': idx,
+                                'Label': true_lbl_str,
+                                'Predicted': pred_lbl_str,
+                                'Cause': cause,
+                                'Failed_Model': model_name,
+                                'Active_Features': str(failed_model_features),
+                                'Suggestion': suggestion
+                            })
 
-                acc = 1.0 - (fails / total_tests)
-                print(f"   Iter {i + 1} | {conf_name:<15} | Lvl {level}: Acc {acc * 100:.1f}%")
+                    acc = 1.0 - (fails / total_tests)
+                    print(f"   Iter {i + 1} | {conf_name:<15} ({kernel_type}) | Lvl {level}: Acc {acc * 100:.1f}%")
 
     with open("robustreport.txt", "w", encoding="utf-8") as f:
         f.write("Robustness Report\n")
@@ -456,17 +495,22 @@ def main():
         else:
             df = pd.DataFrame(error_logs)
 
-            f.write("[Failure Counts by Config & Level]\n")
-            summary = df.groupby(['Config', 'Level']).size().unstack(fill_value=0)
+            f.write("[Failure Counts by Config, Kernel & Level]\n")
+            # Group by Config AND Kernel
+            summary = df.groupby(['Config', 'Kernel', 'Level']).size().unstack(fill_value=0)
             f.write(summary.to_string())
             f.write("\n\n")
 
-            f.write("[Top Failure Causes by Config]\n")
+            f.write("[Top Failure Causes by Config & Kernel]\n")
             for conf in df['Config'].unique():
-                f.write(f"\n>> Configuration: {conf}\n")
-                subset = df[df['Config'] == conf]
-                f.write(subset['Cause'].value_counts().to_string())
-                f.write("\n")
+                for kern in df['Kernel'].unique():
+                    f.write(f"\n>> Configuration: {conf} ({kern})\n")
+                    subset = df[(df['Config'] == conf) & (df['Kernel'] == kern)]
+                    if not subset.empty:
+                        f.write(subset['Cause'].value_counts().to_string())
+                    else:
+                        f.write("No failures.")
+                    f.write("\n")
             f.write("\n")
 
             f.write("[Top Suggested Fixes]\n")
@@ -478,8 +522,7 @@ def main():
             f.write("\n\n")
 
             f.write("[Detailed Error Log Sample (Top 50)]\n")
-            # Reordered columns to show model info and features
-            cols_to_show = ['Config', 'Level', 'Label', 'Predicted', 'Cause', 'Failed_Model', 'Active_Features', 'Suggestion']
+            cols_to_show = ['Config', 'Kernel', 'Level', 'Label', 'Predicted', 'Cause', 'Failed_Model', 'Active_Features', 'Suggestion']
             f.write(df[cols_to_show].head(50).to_string())
             f.write("\n\n* Full details are saved in 'robust_error_details.csv'")
 

@@ -85,18 +85,6 @@ def parse(path):
         if len(series) == 0: return None
 
         array = np.array(series.tolist(), dtype=float)
-
-        # --- [추가된 전처리 단계] ---
-        # 1. 너무 짧은 데이터 무시 (5프레임 미만은 특징 추출 불가)
-        if len(array) < 5: return None
-
-        # 2. 이상치(Spike) 제거
-        array = remove_spikes(array, threshold_std=5.0)
-
-        # 3. 스무딩 (떨림 보정)
-        array = smooth_trajectory(array, window_size=3)
-        # ------------------------
-
         return array
 
     except Exception as e:
@@ -131,7 +119,7 @@ def load(base):
 
 def augment(traj, strength=1.0, scale_r=(0.9, 1.1), offset_mm=1.0):
     newtraj = traj.copy()
-
+    n_points = len(newtraj)
     # 1. Gaussian Noise
     noise = np.random.normal(loc=0.0, scale=strength, size=newtraj.shape)
     newtraj += noise
@@ -146,7 +134,7 @@ def augment(traj, strength=1.0, scale_r=(0.9, 1.1), offset_mm=1.0):
         offset = np.random.uniform(-offset_mm, offset_mm, size=3)
         newtraj += offset
 
-    # 4. Rotation (Z축 회전) - 각도 변동성 대응
+    # 4. Rotation 
     if np.random.rand() > 0.3:
         # -15도 ~ +15도 회전
         theta = np.radians(np.random.uniform(-15, 15))
@@ -155,11 +143,24 @@ def augment(traj, strength=1.0, scale_r=(0.9, 1.1), offset_mm=1.0):
         R = np.array(((c, -s, 0), (s, c, 0), (0, 0, 1)))
         newtraj = np.dot(newtraj, R.T)
 
-    if np.random.rand() > 0.5:  # 50% 확률로 적용
-        drift_level = strength * 0.1
+    if np.random.rand() > 0.5:
+        drift_level = strength * 0.5
         drift_step = np.random.normal(loc=0.0, scale=drift_level, size=newtraj.shape)
         drift = np.cumsum(drift_step, axis=0)
         newtraj += drift
+    
+    if np.random.rand() > 0.7:
+        distort_mag = strength * 20.0 
+        drift_dir = np.random.normal(size=(1, 3))
+        drift_dir /= (np.linalg.norm(drift_dir) + 1e-6)
+        steps = np.linspace(0, 1, n_points).reshape(-1, 1)
+        steps = steps ** 2
+        linear_distortion = steps * (drift_dir * distort_mag)
+        newtraj += linear_distortion
+
+    if np.random.rand() > 0.7:
+        newtraj = newtraj[::-1]
+
     return newtraj
 
 

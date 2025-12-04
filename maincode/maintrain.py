@@ -45,16 +45,12 @@ class HybridClassifier:
         self.cve = label['vertical']
 
         # M1: Circle vs Rest (Ratio, Area, Radius Ratio)
-        #self.select_indices_model1 = [9, 11, 16] 
         self.select_indices_model1 = [5,9, 11, 13, 17, 20,19]
         # M2: Horizontal vs Rest (Line)
-        #self.select_indices_model2 = [1, 2, 6, 7, 8,18]
-        self.select_indices_model2 = [1, 2, 6, 7, 8, 18]
+        self.select_indices_model2 = [1, 2, 6, 7, 8, 16, 18]
         # M3: Vertical vs Complex (Diagonal)
-        #self.select_indices_model3 = [1, 2, 6, 7, 8,18]
-        self.select_indices_model3 = [1, 2, 6, 7, 8, 18]
+        self.select_indices_model3 = [1, 2, 6, 7, 8, 16, 18]
         # M4: Diagonal Left vs Right
-        #self.select_indices_model4 = [14, 15]
         self.select_indices_model4 = [14, 15,13]
     def _filter_features(self, x, indices):
         return x[:, indices]
@@ -248,7 +244,6 @@ if __name__ == "__main__":
 
     # 시각화
     try:
-        # [수정] featurenames -> feature_names
         visualize_model(model.model1, model.scaler1, model.select_indices_model1, xtrain, ytrainaug, 
                         "M1: Circle vs Rest (Ratio, Area, Radius)",
                         {label['circle']: 0, label['horizontal']: 1, label['vertical']: 1, 

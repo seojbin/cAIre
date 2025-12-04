@@ -6,6 +6,9 @@ def add_gaussian_noise(traj, sigma=0.01):
     return traj + noise
 
 def add_drift(traj, max_drift=0.05):
+    """
+    선형 drift: t=0에서 0, t=end에서 최대 max_drift까지 축별 랜덤 계수 [file:query]
+    """
     T = traj.shape[0]
     t = np.linspace(0, 1, T)[:, None]
     coeff = np.random.uniform(-max_drift, max_drift, size=(1, 3))
@@ -17,6 +20,9 @@ def add_bias(traj, max_bias=0.05):
     return traj + bias
 
 def add_tremor(traj, max_amp=0.02, freq_range=(0.5, 2.0)):
+    """
+    저주파 떨림: 사인파 기반 노이즈 [file:query]
+    """
     T = traj.shape[0]
     t = np.linspace(0, 1, T)
     freq = np.random.uniform(*freq_range)
@@ -26,6 +32,9 @@ def add_tremor(traj, max_amp=0.02, freq_range=(0.5, 2.0)):
     return traj + tremor
 
 def compose_augment(traj, cfg):
+    """
+    cfg: dict 예: {'gaussian':0.01,'drift':0.03,'bias':0.02,'tremor':0.01}
+    """
     out = traj.copy()
     if cfg.get('gaussian', 0) > 0:
         out = add_gaussian_noise(out, sigma=cfg['gaussian'])
@@ -36,18 +45,3 @@ def compose_augment(traj, cfg):
     if cfg.get('tremor', 0) > 0:
         out = add_tremor(out, max_amp=cfg['tremor'])
     return out
-
-def augment_data(traj, n=1):
-
-    augmented_list = []
-    for _ in range(n):
-        # 랜덤하게 설정을 섞어서 증강
-        cfg = {
-            'gaussian': np.random.uniform(0.005, 0.02) if np.random.rand() > 0.3 else 0,
-            'drift': np.random.uniform(0.01, 0.05) if np.random.rand() > 0.5 else 0,
-            'bias': np.random.uniform(0.01, 0.05) if np.random.rand() > 0.5 else 0,
-            'tremor': np.random.uniform(0.01, 0.03) if np.random.rand() > 0.5 else 0
-        }
-        aug_traj = compose_augment(traj, cfg)
-        augmented_list.append(aug_traj)
-    return augmented_list
