@@ -183,29 +183,18 @@ def augmentdata(origx, origy, n=10):
 
 
 def pad(list_data):
-    # SVM/Feature Extractor를 쓴다면 패딩은 사실 필요 없지만,
-    # 나중에 딥러닝(LSTM 등)을 쓸 수도 있으므로 유지.
-    # 단, feature extractor에서는 패딩된 0값을 무시하도록 주의해야 함.
     return pad_sequences(list_data, padding='post', dtype='float32', truncating='post')
 
 
 if __name__ == "__main__":
-    base = './'  # 데이터 폴더 경로 확인 필요
+    base = './'  
     origx, origy = load(base)
 
     if len(origx) > 0:
-        # SVM 학습용으로는 증강을 너무 많이 하면(19배) 메모리가 부족할 수 있음. 적절히 조절.
         augx, augy = augmentdata(origx, origy, n=9)
-
-        # 패딩은 저장 편의를 위해 수행 (load 시 다시 리스트로 변환 추천)
-        # padx = pad(augx) # Feature Extractor가 리스트를 받도록 되어있으면 패딩 생략 가능
-
-        # 여기서는 list 그대로 넘기는 것이 Feature Extraction 단계에서 0 제거 로직을 덜어도 되어 편리함
-        # 하지만 npz 저장을 위해 object array로 저장
 
         print(f"Total Samples: {len(augx)}")
 
-        # npz 저장을 위해 array of objects로 변환 (길이가 다르므로)
         X_save = np.array(augx, dtype=object)
 
         np.savez('processed_data.npz', X=X_save, y=augy)

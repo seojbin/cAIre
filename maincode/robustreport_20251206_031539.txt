@@ -1,0 +1,21 @@
+Robustness Report
+Date: 20251206_031539
+Extractor Module Used: feature_extractor.py
+=================
+
+[Feature Definitions by Configuration]
+Configuration: Baseline
+  - M1: ['linearity_ratio', 'ratio_pca_resid', 'xy_area_resid', 'corr_xy_clean', 'radius_ratio_resid', 'helix_thickness', 'deviation_max']
+  - M2: ['Y_iqr', 'Z_iqr', 'clean_range_X', 'clean_range_Y', 'clean_range_Z', 'apex_vec_z', 'pca_z_clean']
+  - M3: ['Y_iqr', 'Z_iqr', 'clean_range_X', 'clean_range_Y', 'clean_range_Z', 'apex_vec_z', 'pca_z_clean']
+  - M4: ['slope_xy_clean', 'corr_xy_clean', 'apex_vec_x', 'apex_vec_y']
+
+Configuration: Experimental_Update
+  - M1: ['linearity_ratio', 'ratio_pca_resid', 'xy_area_resid', 'corr_xy_clean', 'radius_ratio_resid', 'helix_thickness', 'deviation_max']
+  - M2: ['Y_iqr', 'Z_iqr', 'clean_range_X', 'clean_range_Y', 'clean_range_Z', 'apex_vec_z', 'pca_z_clean']
+  - M3: ['Y_iqr', 'Z_iqr', 'clean_range_X', 'clean_range_Y', 'clean_range_Z', 'apex_vec_z', 'pca_z_clean']
+  - M4: ['slope_xy_clean', 'corr_xy_clean', 'apex_vec_x', 'apex_vec_y']
+
+--------------------------------------------------
+
+PERFECT SCORE across all configs and levels!

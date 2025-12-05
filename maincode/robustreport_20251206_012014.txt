@@ -1,0 +1,21 @@
+Robustness Report
+Date: 20251206_012014
+Extractor Module Used: feature_extractor.py
+=================
+
+[Feature Definitions by Configuration]
+Configuration: Baseline
+  - M1: ['linearity_resid', 'ratio_pca_resid', 'xy_area_resid', 'corr_xy', 'radius_ratio', 'rmse_line_fit', 'deviation_max']
+  - M2: ['Y_iqr', 'Z_iqr', 'range_X', 'range_Y', 'range_Z', 'pca_z']
+  - M3: ['Y_iqr', 'Z_iqr', 'range_X', 'range_Y', 'range_Z', 'pca_z']
+  - M4: ['apex_vec_x', 'apex_vec_y']
+
+Configuration: Experimental_Update
+  - M1: ['linearity_resid', 'ratio_pca_resid', 'xy_area_resid', 'corr_xy', 'radius_ratio', 'rmse_line_fit', 'deviation_max']
+  - M2: ['Y_iqr', 'Z_iqr', 'range_X', 'range_Y', 'range_Z', 'apex_vec_z', 'pca_z']
+  - M3: ['Y_iqr', 'Z_iqr', 'range_X', 'range_Y', 'range_Z', 'apex_vec_z', 'pca_z']
+  - M4: ['corr_xy', 'apex_vec_x', 'apex_vec_y']
+
+--------------------------------------------------
+
+PERFECT SCORE across all configs and levels!

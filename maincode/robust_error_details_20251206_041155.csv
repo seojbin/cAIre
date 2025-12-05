@@ -1,0 +1,2 @@
+﻿Iter,Config,Kernel,Extractor,Mode,Level,Sample_ID,Label,Predicted,Cause,Failed_Model,Active_Features,Suggestion
+3,Baseline,linear,feature_extractor,['GAUSSIAN'],50.0,48,diagonal_right,circle,M1 (False Circle),M1,"['linearity_shape', 'ratio_pca_resid', 'xy_area_resid', 'corr_xy_clean', 'radius_ratio_resid', 'helix_thickness', 'deviation_max']","[Baseline][M1] Add 'clean_range_Z', [Baseline][M1] Remove 'ratio_pca_resid', [Baseline][M1] Add 'clean_range_X'"

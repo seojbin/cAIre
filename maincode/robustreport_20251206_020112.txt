@@ -1,0 +1,103 @@
+Robustness Report
+Date: 20251206_020112
+Extractor Module Used: feature_extractor.py
+=================
+
+[Feature Definitions by Configuration]
+Configuration: Baseline
+  - M1: ['linearity_resid', 'ratio_pca_resid', 'xy_area_resid', 'corr_xy', 'radius_ratio', 'rmse_line_fit', 'deviation_max']
+  - M2: ['Y_iqr', 'Z_iqr', 'range_X', 'range_Y', 'range_Z', 'pca_z']
+  - M3: ['Y_iqr', 'Z_iqr', 'range_X', 'range_Y', 'range_Z', 'pca_z']
+  - M4: ['apex_vec_x', 'apex_vec_y']
+
+Configuration: Experimental_Update
+  - M1: ['linearity_resid', 'ratio_pca_resid', 'xy_area_resid', 'corr_xy', 'radius_ratio', 'rmse_line_fit', 'deviation_max']
+  - M2: ['Y_iqr', 'Z_iqr', 'range_X', 'range_Y', 'range_Z', 'apex_vec_z', 'pca_z']
+  - M3: ['Y_iqr', 'Z_iqr', 'range_X', 'range_Y', 'range_Z', 'apex_vec_z', 'pca_z']
+  - M4: ['corr_xy', 'apex_vec_x', 'apex_vec_y']
+
+--------------------------------------------------
+
+[Failure Counts by Config, Kernel & Level]
+Level                       1.0  2.0
+Config              Kernel          
+Baseline            linear    8   77
+Experimental_Update linear    4   72
+
+[Top Failure Causes by Configuration]
+
+>> Configuration: Baseline
+Cause
+M1 (False Circle)     37
+M3 (Missed Vert)      15
+M4 (L->R Fail)        10
+M4 (R->L Fail)         9
+M2 (Missed Horiz)      5
+M1 (Missed Circle)     5
+M2 (False Horiz)       3
+M3 (False Vert)        1
+
+>> Configuration: Experimental_Update
+Cause
+M1 (False Circle)     33
+M3 (Missed Vert)      16
+M2 (False Horiz)      15
+M4 (L->R Fail)         5
+M1 (Missed Circle)     4
+M4 (R->L Fail)         2
+M2 (Missed Horiz)      1
+
+[Detailed Error Log Sample (Top 50)]
+                 Config          Extractor  Level           Label       Predicted               Cause Failed_Model
+0              Baseline  feature_extractor    1.0   diagonal_left        vertical     M3 (False Vert)           M3
+1              Baseline  feature_extractor    2.0          circle        vertical  M1 (Missed Circle)           M1
+2              Baseline  feature_extractor    2.0          circle  diagonal_right  M1 (Missed Circle)           M1
+3              Baseline  feature_extractor    2.0          circle        vertical  M1 (Missed Circle)           M1
+4              Baseline  feature_extractor    2.0   diagonal_left  diagonal_right      M4 (L->R Fail)           M4
+5              Baseline  feature_extractor    2.0   diagonal_left  diagonal_right      M4 (L->R Fail)           M4
+6              Baseline  feature_extractor    2.0   diagonal_left  diagonal_right      M4 (L->R Fail)           M4
+7              Baseline  feature_extractor    2.0  diagonal_right   diagonal_left      M4 (R->L Fail)           M4
+8              Baseline  feature_extractor    2.0  diagonal_right   diagonal_left      M4 (R->L Fail)           M4
+9              Baseline  feature_extractor    2.0  diagonal_right   diagonal_left      M4 (R->L Fail)           M4
+10             Baseline  feature_extractor    2.0      horizontal   diagonal_left   M2 (Missed Horiz)           M2
+11             Baseline  feature_extractor    2.0      horizontal   diagonal_left   M2 (Missed Horiz)           M2
+12             Baseline  feature_extractor    2.0        vertical          circle   M1 (False Circle)           M1
+13             Baseline  feature_extractor    2.0        vertical   diagonal_left    M3 (Missed Vert)           M3
+14  Experimental_Update  feature_extractor    2.0          circle        vertical  M1 (Missed Circle)           M1
+15  Experimental_Update  feature_extractor    2.0          circle   diagonal_left  M1 (Missed Circle)           M1
+16  Experimental_Update  feature_extractor    2.0          circle        vertical  M1 (Missed Circle)           M1
+17  Experimental_Update  feature_extractor    2.0   diagonal_left      horizontal    M2 (False Horiz)           M2
+18  Experimental_Update  feature_extractor    2.0   diagonal_left          circle   M1 (False Circle)           M1
+19  Experimental_Update  feature_extractor    2.0   diagonal_left  diagonal_right      M4 (L->R Fail)           M4
+20  Experimental_Update  feature_extractor    2.0  diagonal_right          circle   M1 (False Circle)           M1
+21  Experimental_Update  feature_extractor    2.0  diagonal_right      horizontal    M2 (False Horiz)           M2
+22  Experimental_Update  feature_extractor    2.0  diagonal_right   diagonal_left      M4 (R->L Fail)           M4
+23  Experimental_Update  feature_extractor    2.0  diagonal_right      horizontal    M2 (False Horiz)           M2
+24  Experimental_Update  feature_extractor    2.0  diagonal_right      horizontal    M2 (False Horiz)           M2
+25  Experimental_Update  feature_extractor    2.0      horizontal  diagonal_right   M2 (Missed Horiz)           M2
+26  Experimental_Update  feature_extractor    2.0        vertical  diagonal_right    M3 (Missed Vert)           M3
+27  Experimental_Update  feature_extractor    2.0        vertical   diagonal_left    M3 (Missed Vert)           M3
+28             Baseline  feature_extractor    2.0   diagonal_left      horizontal    M2 (False Horiz)           M2
+29             Baseline  feature_extractor    2.0  diagonal_right          circle   M1 (False Circle)           M1
+30             Baseline  feature_extractor    2.0      horizontal          circle   M1 (False Circle)           M1
+31             Baseline  feature_extractor    2.0   diagonal_left  diagonal_right      M4 (L->R Fail)           M4
+32             Baseline  feature_extractor    2.0  diagonal_right      horizontal    M2 (False Horiz)           M2
+33             Baseline  feature_extractor    2.0   diagonal_left          circle   M1 (False Circle)           M1
+34             Baseline  feature_extractor    2.0   diagonal_left          circle   M1 (False Circle)           M1
+35             Baseline  feature_extractor    2.0   diagonal_left          circle   M1 (False Circle)           M1
+36             Baseline  feature_extractor    2.0  diagonal_right          circle   M1 (False Circle)           M1
+37             Baseline  feature_extractor    2.0      horizontal          circle   M1 (False Circle)           M1
+38             Baseline  feature_extractor    2.0        vertical  diagonal_right    M3 (Missed Vert)           M3
+39             Baseline  feature_extractor    2.0        vertical          circle   M1 (False Circle)           M1
+40             Baseline  feature_extractor    2.0        vertical  diagonal_right    M3 (Missed Vert)           M3
+41  Experimental_Update  feature_extractor    2.0   diagonal_left      horizontal    M2 (False Horiz)           M2
+42  Experimental_Update  feature_extractor    2.0  diagonal_right          circle   M1 (False Circle)           M1
+43  Experimental_Update  feature_extractor    2.0      horizontal          circle   M1 (False Circle)           M1
+44  Experimental_Update  feature_extractor    2.0   diagonal_left      horizontal    M2 (False Horiz)           M2
+45  Experimental_Update  feature_extractor    2.0  diagonal_right      horizontal    M2 (False Horiz)           M2
+46  Experimental_Update  feature_extractor    2.0   diagonal_left          circle   M1 (False Circle)           M1
+47  Experimental_Update  feature_extractor    2.0   diagonal_left      horizontal    M2 (False Horiz)           M2
+48  Experimental_Update  feature_extractor    2.0   diagonal_left      horizontal    M2 (False Horiz)           M2
+49  Experimental_Update  feature_extractor    2.0      horizontal          circle   M1 (False Circle)           M1
+
+* Full details are saved in 'robust_error_details_20251206_020112.csv'
