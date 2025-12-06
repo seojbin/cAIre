@@ -11,22 +11,22 @@ from sklearn.metrics import accuracy_score
 
 CONFIGS = {
     "Baseline": {
-        "M1": [5, 9, 11, 13, 17, 20, 19],
-        "M2": [1, 2, 6, 7, 8, 18, 16],
-        "M3": [1, 2, 6, 7, 8, 18, 16],
-        "M4": [14, 15]
+        "M1": [5, 9, 11, 13, 17, 19, 20],
+        "M2": [1, 2, 6, 7, 8, 16, 18],
+        "M3": [1, 2, 6, 7, 8, 16, 18],
+        "M4": [12,13,14, 15]
     },
     "Proposed": {
-        "M1": [5, 9, 11, 13, 17, 20, 19],  
-        "M2": [1, 2, 8, 18, 16],    
-        "M3": [1, 2, 8, 18, 16],     
-        "M4": [14, 15, 13]                 
+        "M1": [5, 9, 11, 17, 19, 20],
+        "M2": [ 6, 7, 8, 16, 18],
+        "M3": [6, 7, 8, 16, 18],
+        "M4": [12, 13, 14, 15]                
     },
 }
 
 ITERATIONS = 30       # 통계적 유의성을 위해 최소 30회 권장
-NOISE_MODE = 'DRIFT'
-STRESS_LEVEL = 10.0    # 차이가 가장 잘 드러나는 난이도 설정
+NOISE_MODE = 'BIAS'
+STRESS_LEVEL = 200.0    # 차이가 가장 잘 드러나는 난이도 설정
 
 # ==========================================
 # 2. 환경 설정 (기존 코드와 동일)
@@ -50,14 +50,44 @@ label_dict = label # {'circle': 0, ...}
 # ==========================================
 def add_noise_for_test(traj, mode, level):
     new_traj = traj.copy()
-    if mode == 'LINEAR_DRIFT':
-        drift_dir = np.random.normal(size=(1, 3))
-        drift_dir /= np.linalg.norm(drift_dir)
-        steps = np.arange(len(traj)).reshape(-1, 1)
-        new_traj += steps * (drift_dir * level)
+    if mode == 'GAUSSIAN':
+        noise = np.random.normal(loc=0.0, scale=level, size=traj.shape)
+        new_traj += noise
+    elif mode == 'SPIKE':
+        n_points = len(traj)
+        n_spikes = np.random.randint(1, 4)
+        spike_indices = np.random.choice(n_points, n_spikes, replace=False)
+        for idx in spike_indices:
+            direction = np.random.randn(3)
+            new_traj[idx] += direction * level
     elif mode == 'DRIFT':
         drift_step = np.random.normal(loc=0.0, scale=level, size=traj.shape)
-        new_traj += np.cumsum(drift_step, axis=0)
+        drift = np.cumsum(drift_step, axis=0)
+        new_traj += drift
+    elif mode == 'ROTATION':
+        angle_rad = np.radians(np.random.uniform(-level, level))
+        c, s = np.cos(angle_rad), np.sin(angle_rad)
+        R_z = np.array([[c, -s, 0], [s, c, 0], [0, 0, 1]])
+        new_traj = np.dot(new_traj, R_z.T)
+    elif mode == 'BIAS':
+        offset = np.random.normal(loc=0.0, scale=level, size=(1, 3))
+        new_traj += offset
+    elif mode == 'LINEAR_DRIFT':
+        drift_dir = np.random.normal(size=(1, 3))
+        drift_dir /= (np.linalg.norm(drift_dir) + 1e-6)
+        steps = np.arange(len(traj)).reshape(-1, 1)
+        directional_error = steps * (drift_dir * level)
+        new_traj += directional_error
+    elif mode == 'LINEAR_DISTORTION':
+        n_points = len(traj)
+        drift_dir = np.random.normal(size=(1, 3))
+        drift_dir /= (np.linalg.norm(drift_dir) + 1e-6)
+        steps = np.linspace(0, 1, n_points).reshape(-1, 1)
+        steps = steps ** 2 
+        distortion = steps * (drift_dir * level)
+        new_traj += distortion
+        
+    return new_traj
     # 필요한 다른 모드 추가 가능
     return new_traj
 
