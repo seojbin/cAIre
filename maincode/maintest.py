@@ -43,7 +43,7 @@ class HybridClassifier:
         self.cve = label['vertical']
         
         # M1: Circle vs Rest (Ratio, Area, Radius Ratio)
-        self.select_indices_model1 = [9, 11,13,17, 19, 20] 
+        self.select_indices_model1 = [9, 11,17, 19, 20] 
         # M2: Horizontal vs Rest (Line)
         self.select_indices_model2 = [1,2,6, 7, 8, 16, 18]
         # M3: Vertical vs Complex (Diagonal)
@@ -180,7 +180,6 @@ true_labels = [classnames[t] for t in ytrue]
 for i in range(len(ypred)):
     print(f"샘플 {i + 1}: 예측={predicted_labels[i]}, 실제={true_labels[i]}")
 
-print("\n" + "=" * 30)
 print(classification_report(ytrue, ypred, target_names=classnames, zero_division=0))
 
 cm = confusion_matrix(ytrue, ypred)
@@ -191,7 +190,6 @@ plt.show()
 
 # Visualization
 try:
-    # [수정] featurenames -> feature_names
     visualize_model(model.model1, model.scaler1, model.select_indices_model1, xnewfeatures, ytrue, 
                     "Test M1: Circle vs Rest", 
                     {label['circle']: 0, label['horizontal']: 1, label['vertical']: 1, 

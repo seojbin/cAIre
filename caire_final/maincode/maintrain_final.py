@@ -21,7 +21,7 @@ try:
     from postprocess.preprocess import load, augmentdata, label
     from postprocess.feature_extractor import extractfeatures
 except ImportError:
-    print("전처리 파일 없음")
+    print("Preprocess/Feature Extractor module not found.")
     exit()
 
 
@@ -44,18 +44,20 @@ class HybridClassifier:
         self.cho = label['horizontal']
         self.cve = label['vertical']
 
-        # M1: Circle vs Rest (Ratio, Area, Radius Ratio)
-        self.select_indices_model1 = [9, 11,17, 19, 20] 
-        # M2: Horizontal vs Rest (Line)
-        self.select_indices_model2 = [1,2,6, 7, 8, 16, 18]
-        # M3: Vertical vs Complex (Diagonal)
-        self.select_indices_model3 = [1,2,6, 7, 8, 16, 18]
-        # M4: Diagonal Left vs Right
-        self.select_indices_model4 = [14, 15,25,26]
+        # [FINAL FEATURE SELECTION] Robustness Verified
+        # M1: Circle vs Rest (Ratio, Area, Radius, Helix, DevMax) - No Corr, No Linearity
+        self.select_indices_model1 = [9, 11, 17, 19, 20] 
+        # M2: Horizontal vs Rest (Clean Range X/Y/Z, Apex Z, PCA Z)
+        self.select_indices_model2 = [1, 2, 6, 7, 8, 16, 18]
+        # M3: Vertical vs Diagonal (Same as M2)
+        self.select_indices_model3 = [1, 2, 6, 7, 8, 16, 18]
+        # M4: Diagonal L vs R (Apex X/Y, Start Rel X/Y) - No Slope, No Corr
+        self.select_indices_model4 = [14, 15, 25, 26]
+
     def _filter_features(self, x, indices):
         return x[:, indices]
 
-    def fit(self, x, y, xorig):
+    def fit(self, x, y):
         # M1: Circle(0) vs Others(1)
         x_f1 = self._filter_features(x, self.select_indices_model1)
         self.scaler1.fit(x_f1)
@@ -63,7 +65,7 @@ class HybridClassifier:
         y_m1 = np.where(y == self.cid, 0, 1)
         self.model1.fit(x_s1, y_m1)
 
-        # M2: Horizontal(0) vs Others(1) (Non-Circle Only)
+        # M2: Horizontal(0) vs Others(1)
         mask_m2 = (y != self.cid)
         if np.sum(mask_m2) > 0:
             x_m2 = x[mask_m2]
@@ -72,11 +74,10 @@ class HybridClassifier:
             x_f2 = self._filter_features(x_m2, self.select_indices_model2)
             self.scaler2.fit(x_f2)
             x_s2 = self.scaler2.transform(x_f2)
-            
             y_train2 = np.where(y_m2 == self.cho, 0, 1)
             self.model2.fit(x_s2, y_train2)
 
-            # M3: Vertical(0) vs Diagonals(1) (Non-Horiz Only)
+            # M3: Vertical(0) vs Diagonals(1)
             mask_m3 = (y_m2 != self.cho)
             if np.sum(mask_m3) > 0:
                 x_m3 = x_m2[mask_m3]
@@ -85,11 +86,10 @@ class HybridClassifier:
                 x_f3 = self._filter_features(x_m3, self.select_indices_model3)
                 self.scaler3.fit(x_f3)
                 x_s3 = self.scaler3.transform(x_f3)
-                
                 y_train3 = np.where(y_m3 == self.cve, 0, 1)
                 self.model3.fit(x_s3, y_train3)
 
-                # M4: Left(0) vs Right(1) (Diagonals Only)
+                # M4: Left(0) vs Right(1)
                 mask_m4 = (y_m3 != self.cve)
                 if np.sum(mask_m4) > 0:
                     x_m4 = x_m3[mask_m4]
@@ -98,54 +98,47 @@ class HybridClassifier:
                     x_f4 = self._filter_features(x_m4, self.select_indices_model4)
                     self.scaler4.fit(x_f4)
                     x_s4 = self.scaler4.transform(x_f4)
-                    
                     y_train4 = np.where(y_m4 == self.cdl, 0, 1)
                     self.model4.fit(x_s4, y_train4)
-
-    def predict(self, x, xorig):
+    def predict(self, x):
         ypred = np.zeros(len(x), dtype=int)
-
-        # M1: Circle
+        
+        # M1
         x_f1 = self._filter_features(x, self.select_indices_model1)
         p1 = self.model1.predict(self.scaler1.transform(x_f1))
         ypred[p1 == 0] = self.cid
         
         rest_idx = np.where(p1 == 1)[0]
         if len(rest_idx) == 0: return ypred
-
-        # M2: Horizontal
+        
+        # M2
         x_rest = x[rest_idx]
         x_f2 = self._filter_features(x_rest, self.select_indices_model2)
         p2 = self.model2.predict(self.scaler2.transform(x_f2))
-        
         h_idx = rest_idx[p2 == 0]
         ypred[h_idx] = self.cho
         
         rest_idx2 = rest_idx[p2 == 1]
         if len(rest_idx2) == 0: return ypred
-
-        # M3: Vertical
+        
+        # M3
         x_rest2 = x[rest_idx2]
         x_f3 = self._filter_features(x_rest2, self.select_indices_model3)
         p3 = self.model3.predict(self.scaler3.transform(x_f3))
-        
         v_idx = rest_idx2[p3 == 0]
         ypred[v_idx] = self.cve
         
         diag_idx = rest_idx2[p3 == 1]
         if len(diag_idx) == 0: return ypred
-
-        # M4: Diagonal L vs R
+        
+        # M4
         x_diag = x[diag_idx]
         x_f4 = self._filter_features(x_diag, self.select_indices_model4)
         p4 = self.model4.predict(self.scaler4.transform(x_f4))
         
         for i, val in enumerate(p4):
             ypred[diag_idx[i]] = self.cdl if val == 0 else self.cdr
-
         return ypred
-
-
 def visualize_model(model_clf, scaler, select_indices, x_data, y_true, title, label_map, feature_names):
     if len(x_data) == 0: return
     x_f = x_data[:, select_indices]
@@ -164,23 +157,16 @@ def visualize_model(model_clf, scaler, select_indices, x_data, y_true, title, la
         x_vis = pca.fit_transform(x_s)
         w_pca = w @ pca.components_.T
         b_pca = b + np.dot(w, pca.mean_)
-        
-        x_min, x_max = x_vis[:, 0].min() - 1, x_vis[:, 0].max() + 1
-        y_min, y_max = x_vis[:, 1].min() - 1, x_vis[:, 1].max() + 1
+        x_min, x_max = x_vis[:, 0].min(), x_vis[:, 0].max()
+        y_min, y_max = x_vis[:, 1].min(), x_vis[:, 1].max()
         xx, yy = np.meshgrid(np.linspace(x_min, x_max, 10), np.linspace(y_min, y_max, 10))
-        
         if abs(w_pca[2]) > 0.001:
             z = -(w_pca[0] * xx + w_pca[1] * yy + b_pca) / w_pca[2]
             ax.plot_surface(xx, yy, z, alpha=0.2, color='gray')
     else:
         x_vis = np.hstack([x_s, np.zeros((len(x_s), 3 - x_s.shape[1]))])
-        x_min, x_max = x_vis[:, 0].min() - 1, x_vis[:, 0].max() + 1
-        if abs(w[1]) > 0.001:
-            zz, xx_v = np.meshgrid(np.linspace(-3, 3, 10), np.linspace(x_min, x_max, 10))
-            yy_v = -(w[0] * xx_v + b) / w[1]
-            ax.plot_surface(xx_v, yy_v, zz, alpha=0.2, color='gray')
 
-    preds = model_clf.predict(x_s)
+    preds = model_clf.predict(x_s) # Using internal model predict
     colors = ['blue', 'red']
     inv_label = {v: k for k, v in label.items()}
 
@@ -188,8 +174,10 @@ def visualize_model(model_clf, scaler, select_indices, x_data, y_true, title, la
         idxs = np.where(y_true == cls_label)[0]
         if len(idxs) == 0: continue
         
-        correct = idxs[preds[idxs] == target_val]
-        wrong = idxs[preds[idxs] != target_val]
+        # Internal model prediction comparison
+        correct_mask = (preds[idxs] == target_val)
+        correct = idxs[correct_mask]
+        wrong = idxs[~correct_mask]
         
         c = colors[target_val] if target_val < 2 else 'green'
         lbl = inv_label[cls_label]
@@ -202,75 +190,67 @@ def visualize_model(model_clf, scaler, select_indices, x_data, y_true, title, la
                        c=c, marker='x', s=100, label=f'{lbl} (Wrong)')
 
     ax.set_title(title)
-    ax.view_init(elev=25, azim=135)
     plt.legend()
-    plt.show()
-
+    plt.savefig(f"{title.replace(':', '').replace(' ', '_')}.png")
+    plt.show() 
 
 if __name__ == "__main__":
-    data = os.path.join(project_root, 'data')
-    naugment = 9
-    xorig, yorig = load(data)
+    # 1. Load Data (Old + New)
+    data_path = os.path.join(project_root, 'data')
+    newdata_path = os.path.join(project_root, 'newdata')
+    
+    print("Loading Data...")
+    x_old, y_old = load(data_path)
+    x_new, y_new = load(newdata_path)
 
-    xtrainorig, xtestorig, ytrainorig, ytest = train_test_split(xorig, yorig, test_size=0.2, stratify=yorig, random_state=42)
-    xauglist, ytrainaug = augmentdata(xtrainorig, ytrainorig, n=naugment)
-    xtrain, feature_names = extractfeatures(xauglist) # [수정] featurenames -> feature_names
-    xtest, _ = extractfeatures(xtestorig)
+    if len(x_new) > 0:
+        x_total = x_old + x_new
+        y_total = np.concatenate([y_old, y_new])
+        print(f"Merged Data: {len(x_old)} (Old) + {len(x_new)} (New) = {len(x_total)} Total Samples")
+    else:
+        x_total = x_old
+        y_total = y_old
+        print(f"Loaded {len(x_total)} Samples (Old only)")
+
+    n_aug = 9 # Total 10
+    print(f"Augmenting Data x{n_aug}")
+    x_aug, y_aug = augmentdata(x_total, y_total, n=n_aug)
+    
+    x_feat_train, feature_names = extractfeatures(x_aug)
 
     model = HybridClassifier()
-    model.fit(xtrain, ytrainaug, xauglist)
-    joblib.dump(model, 'mainmodel.joblib')
-
-    # 평가
-    ypred = model.predict(xtest, xtestorig)
+    model.fit(x_feat_train, y_aug)
     
-    classnames = list(label.keys())
-    predicted_labels = [classnames[p] for p in ypred]
-    true_labels = [classnames[t] for t in ytest]
+    joblib.dump(model, 'mainmodel_final.joblib')
+    print("Model saved to 'mainmodel_final.joblib'")
     
-    print("\n")
-    print(f"Test Set Evaluation ({len(xtest)} samples)")
-    for i in range(len(ypred)):
-        print(f"Sample {i+1}: Predict={predicted_labels[i]}, True={true_labels[i]}")
-    
-    print("\n")
-    print(classification_report(ytest, ypred, target_names=classnames, zero_division=0))
-    
-    cm = confusion_matrix(ytest, ypred)
-    plt.figure(figsize=(8, 6))
-    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=classnames, yticklabels=classnames)
-    plt.title('Confusion Matrix')
-    plt.show()
-
-    # 시각화
     try:
-        visualize_model(model.model1, model.scaler1, model.select_indices_model1, xtrain, ytrainaug, 
-                        "M1: Circle vs Rest (Ratio, Area, Radius)",
+        visualize_model(model.model1, model.scaler1, model.select_indices_model1, x_feat_train, y_aug, 
+                        "Final M1: Circle vs Rest",
                         {label['circle']: 0, label['horizontal']: 1, label['vertical']: 1, 
                          label['diagonal_left']: 1, label['diagonal_right']: 1}, feature_names)
         
-        m2_mask = (ytrainaug != label['circle'])
+        m2_mask = (y_aug != label['circle'])
         if np.sum(m2_mask) > 0:
             visualize_model(model.model2, model.scaler2, model.select_indices_model2, 
-                            xtrain[m2_mask], ytrainaug[m2_mask], 
-                            "M2: Horizontal vs Rest",
+                            x_feat_train[m2_mask], y_aug[m2_mask], 
+                            "Final M2: Horizontal vs Rest",
                             {label['horizontal']: 0, label['vertical']: 1, 
                              label['diagonal_left']: 1, label['diagonal_right']: 1}, feature_names)
             
-        m3_mask = m2_mask & (ytrainaug != label['horizontal'])
+        m3_mask = m2_mask & (y_aug != label['horizontal'])
         if np.sum(m3_mask) > 0:
             visualize_model(model.model3, model.scaler3, model.select_indices_model3, 
-                            xtrain[m3_mask], ytrainaug[m3_mask], 
-                            "M3: Vertical vs Diagonal",
+                            x_feat_train[m3_mask], y_aug[m3_mask], 
+                            "Final M3: Vertical vs Diagonal",
                             {label['vertical']: 0, label['diagonal_left']: 1, 
                              label['diagonal_right']: 1}, feature_names)
 
-        m4_mask = m3_mask & (ytrainaug != label['vertical'])
+        m4_mask = m3_mask & (y_aug != label['vertical'])
         if np.sum(m4_mask) > 0:
             visualize_model(model.model4, model.scaler4, model.select_indices_model4, 
-                            xtrain[m4_mask], ytrainaug[m4_mask], 
-                            "M4: Diag L vs R (Apex)",
+                            x_feat_train[m4_mask], y_aug[m4_mask], 
+                            "Final M4: Diag L vs R",
                             {label['diagonal_left']: 0, label['diagonal_right']: 1}, feature_names)
-            
     except Exception as e:
-        print(f"Visualization Error: {e}")
+        print(f"Visualization Skipped: {e}")
