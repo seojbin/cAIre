@@ -210,7 +210,7 @@ def extractfeatures(trajectories):
         feat_start_y_rel = 0.0
         try:
             centroid = np.mean(traj_clean, axis=0)
-            diff = start_point - centroid
+            diff = -centroid
             if max_reach_clean > 1e-6:
                 feat_start_x_rel = diff[0] / max_reach_clean
                 feat_start_y_rel = diff[1] / max_reach_clean

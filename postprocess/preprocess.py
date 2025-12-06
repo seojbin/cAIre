@@ -117,7 +117,7 @@ def load(base):
     return otraject, np.array(olabels)
 
 
-def augment(traj, strength=1.0, scale_r=(0.9, 1.1), offset_mm=1.0):
+def augment(traj, strength=1.0, scale_r=(0.9, 1.1)):
     newtraj = traj.copy()
     n_points = len(newtraj)
     # 1. Gaussian Noise
@@ -129,10 +129,6 @@ def augment(traj, strength=1.0, scale_r=(0.9, 1.1), offset_mm=1.0):
         scale = np.random.uniform(scale_r[0], scale_r[1])
         newtraj *= scale
 
-    # 3. Offset (Shift)
-    if np.random.rand() > 0.3:
-        offset = np.random.uniform(-offset_mm, offset_mm, size=3)
-        newtraj += offset
 
     # 4. Rotation 
     if np.random.rand() > 0.3:
@@ -175,7 +171,7 @@ def augmentdata(origx, origy, n=10):
 
         for _ in range(n):
             # 노이즈 강도를 약간씩 다르게 줄 수도 있음
-            newtraj = augment(traj, strength=1.0, scale_r=(0.85, 1.15), offset_mm=2.0)
+            newtraj = augment(traj, strength=1.0, scale_r=(0.85, 1.15))
             augx.append(newtraj)
             augy.append(label)
 
