@@ -1,0 +1,24 @@
+=== Robustness Test Report (20251207_005539) ===
+
+[Model Hyperplanes (Trained on Aug Data)]
+M1: (-0.49*ratio_pca_resid) + (0.34*xy_area_resid) + (-0.35*radius_ratio_resid) + (-0.47*helix_thickness) + (-0.26*deviation_max) + 0.58 = 0
+M2: (-0.26*Y_iqr) + (0.16*Z_iqr) + (-0.27*clean_range_X) + (-0.31*clean_range_Y) + (0.19*clean_range_Z) + (0.26*apex_vec_z) + (-0.27*pca_z_clean) + 1.06 = 0
+M3: (0.33*Y_iqr) + (-0.16*Z_iqr) + (0.05*clean_range_X) + (0.35*clean_range_Y) + (-0.16*clean_range_Z) + (-0.34*apex_vec_z) + (0.26*pca_z_clean) + 0.52 = 0
+M4: (0.16*apex_vec_x) + (-0.70*apex_vec_y) + (-0.11*start_x_rel) + (0.63*start_y_rel) + -0.01 = 0
+
+--- Scenario: DRIFT ---
+Level 2.0: Acc 100.00%
+Level 4.0: Acc 100.00%
+Level 6.0: Acc 100.00%
+--- Scenario: LINEAR_DRIFT ---
+Level 1.0: Acc 100.00%
+Level 3.0: Acc 100.00%
+Level 5.0: Acc 100.00%
+--- Scenario: ROTATION ---
+Level 15.0: Acc 100.00%
+Level 30.0: Acc 100.00%
+Level 45.0: Acc 100.00%
+--- Scenario: LINEAR_DISTORTION ---
+Level 200.0: Acc 100.00%
+Level 400.0: Acc 100.00%
+Level 600.0: Acc 100.00%

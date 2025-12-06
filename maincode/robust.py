@@ -18,7 +18,7 @@ from scipy.spatial.transform import Rotation as R
 # 사용할 피쳐 추출기 파일명
 EXTRACTOR_MODULE_NAME = 'feature_extractor' 
 
-NOISE_MODE = ['DRIFT'] 
+NOISE_MODE = ['LINEAR_DISTORTION'] 
 primary_mode = NOISE_MODE[0] if isinstance(NOISE_MODE, list) else NOISE_MODE
 
 if primary_mode == 'GAUSSIAN':
@@ -26,17 +26,17 @@ if primary_mode == 'GAUSSIAN':
 elif primary_mode == 'SPIKE':
     STRESS_LEVELS = [100.0, 500.0, 1000.0, 2000.0]
 elif primary_mode == 'DRIFT':
-    STRESS_LEVELS = [1.0, 3.0, 5.0]
+    STRESS_LEVELS = [2.0, 4.0, 6.0]
 elif primary_mode == 'ROTATION':
     STRESS_LEVELS = [5.0, 15.0, 30.0, 40.0]
 elif primary_mode == 'BIAS':
     STRESS_LEVELS = [20.0, 50.0, 100.0, 200.0]
 elif primary_mode == 'LINEAR_DRIFT':
     # 직선형 이탈
-    STRESS_LEVELS = [0.5, 1.0, 2.0]
+    STRESS_LEVELS = [2.0, 4.0, 6.0]
 elif primary_mode == 'LINEAR_DISTORTION':
     # 곡선형 왜곡
-    STRESS_LEVELS = [100.0, 200.0, 300.0]
+    STRESS_LEVELS = [200.0, 400.0, 600.0]
 else:
     # 기본값 (매칭되는 모드가 없을 경우)
     STRESS_LEVELS = [1.0, 5.0, 10.0]
@@ -49,16 +49,16 @@ ITERATIONS = 5
 # 피쳐 설정 (비교 대상)
 FEATURE_CONFIGS = {
     "Baseline": {
-        "M1": [5, 9, 11, 13, 17, 19, 20],
-        "M2": [1, 2, 6, 7, 8, 16, 18],
-        "M3": [1, 2, 6, 7, 8, 16, 18],
-        "M4": [12,13,14, 15]
+        "M1": [9, 11,13,17, 19, 20],
+        "M2": [ 1,2,6, 7, 8, 16,18],
+        "M3": [1,2,6, 7, 8, 16,18],
+        "M4": [14, 15,25,26]   
     },
     "Experimental_Update": {
-        "M1": [5, 9, 11, 17, 19, 20],
-        "M2": [ 6, 7, 8, 16, 18],
-        "M3": [6, 7, 8, 16, 18],
-        "M4": [12, 13, 14, 15]
+        "M1": [9, 11, 17, 19, 20],
+        "M2": [ 1,2,6, 7, 8, 16, 18],
+        "M3": [1,2,6, 7, 8, 16, 18],
+        "M4": [14,15,25,26]   
     },
 }
 

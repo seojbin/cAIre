@@ -1,0 +1,3 @@
+﻿Iter,Config,Kernel,Extractor,Mode,Level,Sample_ID,Label,Predicted,Cause,Failed_Model,Active_Features,Suggestion
+3,Baseline,linear,feature_extractor,['LINEAR_DRIFT'],2.0,0,circle,diagonal_left,M1 (Missed Circle),M1,"['linearity_shape', 'ratio_pca_resid', 'xy_area_resid', 'corr_xy_clean', 'radius_ratio_resid', 'helix_thickness', 'deviation_max']","[Baseline][M1] Remove 'deviation_max', [Baseline][M1] Remove 'helix_thickness'"
+3,Experimental_Update,linear,feature_extractor,['LINEAR_DRIFT'],2.0,0,circle,diagonal_left,M1 (Missed Circle),M1,"['linearity_shape', 'ratio_pca_resid', 'xy_area_resid', 'corr_xy_clean', 'radius_ratio_resid', 'helix_thickness', 'deviation_max']","[Experimental_Update][M1] Remove 'helix_thickness', [Experimental_Update][M1] Remove 'deviation_max'"

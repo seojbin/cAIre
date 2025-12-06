@@ -42,10 +42,14 @@ class HybridClassifier:
         self.cho = label['horizontal']
         self.cve = label['vertical']
         
-        self.select_indices_model1 = [11, 16] 
-        self.select_indices_model2 = [1, 2, 6, 7, 8]
-        self.select_indices_model3 = [1, 2, 6, 7, 8]
-        self.select_indices_model4 = [14, 15]
+        # M1: Circle vs Rest (Ratio, Area, Radius Ratio)
+        self.select_indices_model1 = [9, 11,13,17, 19, 20] 
+        # M2: Horizontal vs Rest (Line)
+        self.select_indices_model2 = [1,2,6, 7, 8, 16, 18]
+        # M3: Vertical vs Complex (Diagonal)
+        self.select_indices_model3 = [1,2,6, 7, 8, 16, 18]
+        # M4: Diagonal Left vs Right
+        self.select_indices_model4 = [14, 15,25,26]
 
     def _filter_features(self, x, indices):
         return x[:, indices]

@@ -157,9 +157,9 @@ def augment(traj, strength=1.0, scale_r=(0.9, 1.1), offset_mm=1.0):
         steps = steps ** 2
         linear_distortion = steps * (drift_dir * distort_mag)
         newtraj += linear_distortion
-
-    if np.random.rand() > 0.7:
-        newtraj = newtraj[::-1]
+    if np.random.rand() > 0.5:
+        idxs = sorted(np.random.choice(len(newtraj), int(len(newtraj)*0.9), replace=False))
+        newtraj = newtraj[idxs]
 
     return newtraj
 

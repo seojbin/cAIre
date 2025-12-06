@@ -5,7 +5,7 @@ from scipy.spatial import ConvexHull
 from scipy.stats import iqr
 from scipy.ndimage import gaussian_filter1d
 from scipy import signal
-import pywt 
+import pywt
 
 def get_robust_apex_idx(traj, start_point):
     if len(traj) < 5: return len(traj)-1
@@ -21,7 +21,7 @@ def extractfeatures(trajectories):
     
     feature_names = [
         'X_iqr', 'Y_iqr', 'Z_iqr',           # 0, 1, 2
-        'ideal_length_pc1', 'max_reach', 'linearity_shape', # 3, 4, 5 [Shape 기준]
+        'ideal_length_pc1', 'max_reach', 'linearity_shape', # 3, 4, 5
         'clean_range_X', 'clean_range_Y', 'clean_range_Z', # 6, 7, 8
         'ratio_pca_resid',                   # 9
         'jerk_smooth',                       # 10
@@ -38,6 +38,9 @@ def extractfeatures(trajectories):
         'ldlj',                              # 22
         'dwt_energy_detail',                 # 23
         'linearity_resid',                   # 24
+        'start_x_rel',                       # 25
+        'start_y_rel',                       # 26 
+        'pca_1_z',                           # 27
     ]
 
     for traj_raw in trajectories:
@@ -83,14 +86,13 @@ def extractfeatures(trajectories):
         # ================= Feature Extraction =================
 
         # [0~2] IQR
-        iqrs = iqr(traj_shape, axis=0, rng=(25, 75))
+        iqrs = iqr(traj_clean, axis=0, rng=(25, 75))
 
         # [3~5] Length & Shape Linearity
         feat_length = ideal_length
         feat_max_reach = max_reach_clean
         
         len_path_shape = np.sum(np.linalg.norm(np.diff(traj_shape, axis=0), axis=1))
-        # Shape 기준 Reach (Drift 포함된 실제 직선 거리)
         reach_shape = np.linalg.norm(traj_shape[-1] - start_point)
         if reach_shape < 1e-3: reach_shape = np.max(np.linalg.norm(traj_shape - start_point, axis=1))
         feat_linearity_shape = len_path_shape / (reach_shape + 1e-6)
@@ -108,7 +110,7 @@ def extractfeatures(trajectories):
         actual_len_raw = np.sum(np.linalg.norm(np.diff(traj_detail, axis=0), axis=1))
         feat_jerk = np.sum(np.linalg.norm(jerk, axis=1)) / (actual_len_raw + 1e-6)
 
-        # [11] XY Area (No Cutoff)
+        # [11] XY Area
         feat_xy_area = 0.0
         try:
             if len(traj_clean) > 3:
@@ -116,7 +118,7 @@ def extractfeatures(trajectories):
                 feat_xy_area = hull.volume
         except: pass
 
-        # [12, 13] Slope & Corr
+        # [12, 13] Slope & Corr (MODIFIED)
         feat_slope = 0.0
         feat_corr = 0.0
         try:
@@ -127,7 +129,8 @@ def extractfeatures(trajectories):
                 lr.fit(sub[:, 0].reshape(-1, 1), sub[:, 1])
                 feat_slope = lr.coef_[0]
                 c = np.corrcoef(sub[:, 0], sub[:, 1])[0, 1]
-                if not np.isnan(c): feat_corr = c
+                if not np.isnan(c): 
+                    feat_corr = abs(c) # <--- [수정됨] 절대값 적용 (직선은 1.0으로 통일)
         except: pass
 
         # [14~16] Apex Vector
@@ -135,20 +138,28 @@ def extractfeatures(trajectories):
         if max_reach_clean > 1e-3:
             feat_apex_vec = main_vec / max_reach_clean
 
-        # [17] Radius Ratio (No Cutoff)
+        # [17] Radius Ratio (MODIFIED)
         feat_radius_ratio = 0.0
         try:
-            dists = np.linalg.norm(traj_clean, axis=1)
-            mean_r = np.mean(dists)
-            std_r = np.std(dists)
-            if std_r > 1e-6:
-                feat_radius_ratio = mean_r / std_r
+            # 1. 무게중심(Centroid) 계산 [수정됨]
+            centroid = np.mean(traj_clean, axis=0)
+            
+            # 2. 중심으로부터의 거리 계산 [수정됨: start_point -> centroid]
+            dists = np.linalg.norm(traj_clean - centroid, axis=1)
+            
+            # 3. Robust Ratio 계산 (Min/Max 방식) [수정됨: mean/std -> min/max]
+            # 원이면 min과 max가 비슷해서 1.0에 근접, 직선이면 0.0에 근접
+            r_min = np.min(dists)
+            r_max = np.max(dists)
+            
+            if r_max > 1e-6:
+                feat_radius_ratio = r_min / r_max
         except: pass
 
-        # [18] PCA Z (Shape 기준)
+        # [18] PCA Z
         feat_pca_z = abs(pca_shape.components_[2][2])
 
-        # [19] Helix Thickness (No Cutoff)
+        # [19] Helix Thickness
         feat_helix_thick = 0.0
         if ideal_length > 1e-6:
             feat_helix_thick = resid_spread / ideal_length
@@ -187,32 +198,46 @@ def extractfeatures(trajectories):
             feat_dwt = np.log(np.sum(np.square(coeffs[1])) + 1e-6)
         except: pass
 
-        # [24] Resid Linearity (High Drift 대응) - NEW
-        # Detrended 궤적 길이 / Detrended Reach (원이면 매우 큼, 직선이면 매우 작음)
+        # [24] Resid Linearity
         len_resid = np.sum(np.linalg.norm(np.diff(traj_clean, axis=0), axis=1))
-        # 만약 max_reach_clean이 0에 가까우면 (완전 제자리 직선), 비율은 0으로.
         if max_reach_clean < total_scale * 0.05:
             feat_linearity_resid = 0.0
         else:
             feat_linearity_resid = len_resid / (max_reach_clean + 1e-6)
 
+        # [NEW 25, 26] Start Position Relative to Centroid
+        feat_start_x_rel = 0.0
+        feat_start_y_rel = 0.0
+        try:
+            centroid = np.mean(traj_clean, axis=0)
+            diff = start_point - centroid
+            if max_reach_clean > 1e-6:
+                feat_start_x_rel = diff[0] / max_reach_clean
+                feat_start_y_rel = diff[1] / max_reach_clean
+        except: pass
+        
+        # [27] PCA 1 Z
+        feat_pca_1_z = abs(pca_shape.components_[0][2])
+
         # Combine
         features = np.concatenate([
-            iqrs,                                  # 0, 1, 2
+            iqrs,                                    # 0, 1, 2
             [feat_length, feat_max_reach, feat_linearity_shape], # 3, 4, 5
-            feat_ranges,                           # 6, 7, 8
-            [ratio_pca],                           # 9
-            [feat_jerk],                           # 10
-            [feat_xy_area],                        # 11
-            [feat_slope, feat_corr],               # 12, 13
-            feat_apex_vec,                         # 14, 15, 16
-            [feat_radius_ratio],                   # 17
-            [feat_pca_z],                          # 18
-            [feat_helix_thick],                    # 19
-            [feat_dev_max],                        # 20
-            [feat_turn],                           # 21
-            [feat_ldlj, feat_dwt],                 # 22, 23
-            [feat_linearity_resid],                # 24 
+            feat_ranges,                             # 6, 7, 8
+            [ratio_pca],                             # 9
+            [feat_jerk],                             # 10
+            [feat_xy_area],                          # 11
+            [feat_slope, feat_corr],                 # 12, 13
+            feat_apex_vec,                           # 14, 15, 16
+            [feat_radius_ratio],                     # 17
+            [feat_pca_z],                            # 18
+            [feat_helix_thick],                      # 19
+            [feat_dev_max],                          # 20
+            [feat_turn],                             # 21
+            [feat_ldlj, feat_dwt],                   # 22, 23
+            [feat_linearity_resid],                  # 24 
+            [feat_start_x_rel, feat_start_y_rel],    # 25, 26
+            [feat_pca_1_z]                           # 27
         ])
         
         feature_list.append(features)
