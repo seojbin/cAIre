@@ -1,0 +1,63 @@
+=== AI Model Live Demo ===
+Date: 20251207_032446
+Target Data Path: D:\downloads\caire\newdata
+Model File: D:\downloads\caire\maincode\mainmodel_final.joblib
+>> Model loaded successfully.
+>> Loading test data...
+   -> Loaded 28 samples.
+>> Extracting features...
+>> Running inference...
+
+========================================
+       PREDICTION RESULTS       
+========================================
+Sample 01: Pred=circle          | True=circle          [O]
+Sample 02: Pred=circle          | True=circle          [O]
+Sample 03: Pred=circle          | True=circle          [O]
+Sample 04: Pred=circle          | True=circle          [O]
+Sample 05: Pred=circle          | True=circle          [O]
+Sample 06: Pred=circle          | True=circle          [O]
+Sample 07: Pred=circle          | True=circle          [O]
+Sample 08: Pred=circle          | True=circle          [O]
+Sample 09: Pred=diagonal_left   | True=diagonal_left   [O]
+Sample 10: Pred=diagonal_left   | True=diagonal_left   [O]
+Sample 11: Pred=diagonal_left   | True=diagonal_left   [O]
+Sample 12: Pred=diagonal_left   | True=diagonal_left   [O]
+Sample 13: Pred=diagonal_left   | True=diagonal_left   [O]
+Sample 14: Pred=diagonal_right  | True=diagonal_right  [O]
+Sample 15: Pred=diagonal_right  | True=diagonal_right  [O]
+Sample 16: Pred=diagonal_right  | True=diagonal_right  [O]
+Sample 17: Pred=diagonal_right  | True=diagonal_right  [O]
+Sample 18: Pred=diagonal_right  | True=diagonal_right  [O]
+Sample 19: Pred=horizontal      | True=horizontal      [O]
+Sample 20: Pred=horizontal      | True=horizontal      [O]
+Sample 21: Pred=horizontal      | True=horizontal      [O]
+Sample 22: Pred=horizontal      | True=horizontal      [O]
+Sample 23: Pred=horizontal      | True=horizontal      [O]
+Sample 24: Pred=vertical        | True=vertical        [O]
+Sample 25: Pred=vertical        | True=vertical        [O]
+Sample 26: Pred=vertical        | True=vertical        [O]
+Sample 27: Pred=vertical        | True=vertical        [O]
+Sample 28: Pred=vertical        | True=vertical        [O]
+Final Accuracy: 100.00% (28/28)
+
+[Classification Report]
+                precision    recall  f1-score   support
+
+        circle       1.00      1.00      1.00         8
+ diagonal_left       1.00      1.00      1.00         5
+diagonal_right       1.00      1.00      1.00         5
+    horizontal       1.00      1.00      1.00         5
+      vertical       1.00      1.00      1.00         5
+
+      accuracy                           1.00        28
+     macro avg       1.00      1.00      1.00        28
+  weighted avg       1.00      1.00      1.00        28
+
+
+Generating Visualizations...
+
+[Test M1: Circle vs Rest] Hyperplane: (-0.50*ratio_pca_resid) + (0.34*xy_area_resid) + (-0.34*radius_ratio_resid) + (-0.45*helix_thickness) + (-0.23*deviation_max) + 0.50 = 0
+[Test M2: Horizontal vs Rest] Hyperplane: (-0.29*Y_iqr) + (0.20*Z_iqr) + (-0.23*clean_range_X) + (-0.34*clean_range_Y) + (0.23*clean_range_Z) + (0.30*apex_vec_z) + (-0.28*pca_z_clean) + 1.23 = 0
+[Test M3: Vertical vs Diagonal] Hyperplane: (0.50*Y_iqr) + (-0.00*Z_iqr) + (-0.00*clean_range_X) + (0.62*clean_range_Y) + (-0.24*clean_range_Z) + (-0.36*apex_vec_z) + (0.41*pca_z_clean) + 1.05 = 0
+[Test M4: Diag L vs R (Apex)] Hyperplane: (0.03*apex_vec_x) + (-0.62*apex_vec_y) + (-0.16*start_x_rel) + (0.58*start_y_rel) + 0.12 = 0

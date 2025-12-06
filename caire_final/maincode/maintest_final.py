@@ -86,6 +86,37 @@ def visualize_model_test(model_clf, scaler, select_indices, x_data, y_true, titl
     plt.show() 
 
     return hyperplane_eq
+def visualize_failed_samples(x_raw, y_true, y_pred, save_dir):
+    inv_label = {v: k for k, v in label.items()}
+    failed_indices = np.where(y_true != y_pred)[0]
+    
+    if len(failed_indices) == 0:
+        return
+
+    fail_dir = os.path.join(save_dir, "failed_samples")
+    os.makedirs(fail_dir, exist_ok=True)
+
+    for idx in failed_indices:
+        traj = x_raw[idx]
+        true_lbl = inv_label[y_true[idx]]
+        pred_lbl = inv_label[y_pred[idx]]
+        
+        fig = plt.figure(figsize=(8, 6))
+        ax = fig.add_subplot(111, projection='3d')
+        
+        ax.plot(traj[:,0], traj[:,1], traj[:,2], label='Trajectory', color='red')
+        ax.scatter(traj[0,0], traj[0,1], traj[0,2], c='green', marker='o', s=50, label='Start')
+        ax.scatter(traj[-1,0], traj[-1,1], traj[-1,2], c='blue', marker='x', s=50, label='End')
+        
+        ax.set_title(f"Sample {idx}: True[{true_lbl}] vs Pred[{pred_lbl}]")
+        ax.set_xlabel('X')
+        ax.set_ylabel('Y')
+        ax.set_zlabel('Z')
+        ax.legend()
+        
+        filename = f"Fail_ID{idx}_True_{true_lbl}_Pred_{pred_lbl}.png"
+        plt.savefig(os.path.join(fail_dir, filename))
+        plt.close()
 
 def run_demo():
     # 결과 저장 폴더 생성
@@ -152,9 +183,7 @@ def run_demo():
 
     if has_label:
         acc = correct_cnt / len(y_pred) * 100
-        print_log("-" * 40)
         print_log(f"Final Accuracy: {acc:.2f}% ({correct_cnt}/{len(y_pred)})")
-        print_log("-" * 40)
         
         report = classification_report(y_true, y_pred, target_names=classnames, zero_division=0)
         print_log("\n[Classification Report]")
@@ -172,7 +201,8 @@ def run_demo():
             plt.savefig(os.path.join(result_dir, "confusion_matrix.png"))
             plt.close()
         except: pass
-
+        if correct_cnt < len(y_pred):
+            visualize_failed_samples(x_test, y_true, y_pred, result_dir)
     # Visualization & Hyperplane Logging
     print_log("\nGenerating Visualizations...")
     try:
