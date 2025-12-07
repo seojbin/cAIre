@@ -1,0 +1,94 @@
+Robustness Report
+Date: 20251207_114506
+Extractor Module Used: feature_extractor.py
+=================
+
+[Feature Definitions by Configuration]
+Configuration: Baseline
+  - M1: ['ratio_pca_resid', 'xy_area_resid', 'radius_ratio_resid', 'helix_thickness', 'deviation_max']
+  - M2: ['Y_iqr', 'Z_iqr', 'clean_range_X', 'clean_range_Y', 'clean_range_Z', 'apex_vec_z', 'pca_z_clean']
+  - M3: ['Y_iqr', 'Z_iqr', 'clean_range_X', 'clean_range_Y', 'clean_range_Z', 'apex_vec_z', 'pca_z_clean']
+  - M4: ['apex_vec_x', 'apex_vec_y', 'start_x_rel', 'start_y_rel']
+
+Configuration: Experimental_Update
+  - M1: ['ratio_pca_resid', 'xy_area_resid', 'radius_ratio_resid', 'helix_thickness', 'deviation_max']
+  - M2: ['Y_iqr', 'Z_iqr', 'clean_range_X', 'clean_range_Y', 'clean_range_Z', 'apex_vec_z', 'pca_z_clean']
+  - M3: ['Y_iqr', 'Z_iqr', 'clean_range_X', 'clean_range_Y', 'clean_range_Z', 'apex_vec_z', 'pca_z_clean']
+  - M4: ['apex_vec_x', 'apex_vec_y', 'start_x_rel', 'start_y_rel', 'delta_azimuth']
+
+--------------------------------------------------
+
+[Failure Counts by Config, Kernel & Level]
+Level                       45.0  90.0
+Config              Kernel            
+Baseline            linear     1    39
+Experimental_Update linear     2    21
+
+[Top Failure Causes by Configuration]
+
+>> Configuration: Baseline
+Cause
+M4 (R->L Fail)     21
+M3 (False Vert)    13
+M4 (L->R Fail)      6
+
+>> Configuration: Experimental_Update
+Cause
+M4 (R->L Fail)     11
+M3 (False Vert)    11
+M4 (L->R Fail)      1
+
+[Detailed Error Log Sample (Top 50)]
+                 Config          Extractor  Level           Label       Predicted            Cause Failed_Model
+0              Baseline  feature_extractor   90.0   diagonal_left  diagonal_right   M4 (L->R Fail)           M4
+1              Baseline  feature_extractor   90.0   diagonal_left        vertical  M3 (False Vert)           M3
+2              Baseline  feature_extractor   90.0   diagonal_left  diagonal_right   M4 (L->R Fail)           M4
+3              Baseline  feature_extractor   90.0   diagonal_left        vertical  M3 (False Vert)           M3
+4              Baseline  feature_extractor   90.0  diagonal_right   diagonal_left   M4 (R->L Fail)           M4
+5              Baseline  feature_extractor   90.0  diagonal_right        vertical  M3 (False Vert)           M3
+6              Baseline  feature_extractor   90.0  diagonal_right   diagonal_left   M4 (R->L Fail)           M4
+7              Baseline  feature_extractor   90.0  diagonal_right   diagonal_left   M4 (R->L Fail)           M4
+8   Experimental_Update  feature_extractor   90.0   diagonal_left  diagonal_right   M4 (L->R Fail)           M4
+9              Baseline  feature_extractor   90.0  diagonal_right   diagonal_left   M4 (R->L Fail)           M4
+10             Baseline  feature_extractor   90.0  diagonal_right   diagonal_left   M4 (R->L Fail)           M4
+11             Baseline  feature_extractor   90.0   diagonal_left  diagonal_right   M4 (L->R Fail)           M4
+12             Baseline  feature_extractor   90.0  diagonal_right   diagonal_left   M4 (R->L Fail)           M4
+13             Baseline  feature_extractor   90.0   diagonal_left        vertical  M3 (False Vert)           M3
+14             Baseline  feature_extractor   90.0  diagonal_right        vertical  M3 (False Vert)           M3
+15             Baseline  feature_extractor   90.0  diagonal_right   diagonal_left   M4 (R->L Fail)           M4
+16             Baseline  feature_extractor   90.0  diagonal_right   diagonal_left   M4 (R->L Fail)           M4
+17  Experimental_Update  feature_extractor   90.0  diagonal_right   diagonal_left   M4 (R->L Fail)           M4
+18  Experimental_Update  feature_extractor   90.0  diagonal_right        vertical  M3 (False Vert)           M3
+19  Experimental_Update  feature_extractor   90.0   diagonal_left        vertical  M3 (False Vert)           M3
+20  Experimental_Update  feature_extractor   90.0  diagonal_right   diagonal_left   M4 (R->L Fail)           M4
+21             Baseline  feature_extractor   90.0  diagonal_right   diagonal_left   M4 (R->L Fail)           M4
+22             Baseline  feature_extractor   90.0   diagonal_left        vertical  M3 (False Vert)           M3
+23             Baseline  feature_extractor   90.0   diagonal_left        vertical  M3 (False Vert)           M3
+24             Baseline  feature_extractor   90.0  diagonal_right   diagonal_left   M4 (R->L Fail)           M4
+25             Baseline  feature_extractor   90.0   diagonal_left  diagonal_right   M4 (L->R Fail)           M4
+26             Baseline  feature_extractor   90.0  diagonal_right   diagonal_left   M4 (R->L Fail)           M4
+27             Baseline  feature_extractor   90.0  diagonal_right   diagonal_left   M4 (R->L Fail)           M4
+28             Baseline  feature_extractor   90.0   diagonal_left  diagonal_right   M4 (L->R Fail)           M4
+29  Experimental_Update  feature_extractor   90.0   diagonal_left        vertical  M3 (False Vert)           M3
+30  Experimental_Update  feature_extractor   90.0  diagonal_right   diagonal_left   M4 (R->L Fail)           M4
+31             Baseline  feature_extractor   45.0   diagonal_left        vertical  M3 (False Vert)           M3
+32             Baseline  feature_extractor   90.0  diagonal_right   diagonal_left   M4 (R->L Fail)           M4
+33             Baseline  feature_extractor   90.0   diagonal_left        vertical  M3 (False Vert)           M3
+34             Baseline  feature_extractor   90.0  diagonal_right        vertical  M3 (False Vert)           M3
+35             Baseline  feature_extractor   90.0   diagonal_left  diagonal_right   M4 (L->R Fail)           M4
+36             Baseline  feature_extractor   90.0  diagonal_right        vertical  M3 (False Vert)           M3
+37             Baseline  feature_extractor   90.0  diagonal_right   diagonal_left   M4 (R->L Fail)           M4
+38             Baseline  feature_extractor   90.0  diagonal_right   diagonal_left   M4 (R->L Fail)           M4
+39             Baseline  feature_extractor   90.0   diagonal_left        vertical  M3 (False Vert)           M3
+40  Experimental_Update  feature_extractor   45.0   diagonal_left        vertical  M3 (False Vert)           M3
+41  Experimental_Update  feature_extractor   45.0  diagonal_right        vertical  M3 (False Vert)           M3
+42  Experimental_Update  feature_extractor   90.0  diagonal_right   diagonal_left   M4 (R->L Fail)           M4
+43  Experimental_Update  feature_extractor   90.0   diagonal_left        vertical  M3 (False Vert)           M3
+44  Experimental_Update  feature_extractor   90.0  diagonal_right   diagonal_left   M4 (R->L Fail)           M4
+45  Experimental_Update  feature_extractor   90.0  diagonal_right        vertical  M3 (False Vert)           M3
+46  Experimental_Update  feature_extractor   90.0  diagonal_right   diagonal_left   M4 (R->L Fail)           M4
+47  Experimental_Update  feature_extractor   90.0  diagonal_right        vertical  M3 (False Vert)           M3
+48  Experimental_Update  feature_extractor   90.0  diagonal_right   diagonal_left   M4 (R->L Fail)           M4
+49  Experimental_Update  feature_extractor   90.0   diagonal_left        vertical  M3 (False Vert)           M3
+
+* Full details are saved in 'robust_error_details_20251207_114506.csv'

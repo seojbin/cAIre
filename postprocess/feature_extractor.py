@@ -41,6 +41,7 @@ def extractfeatures(trajectories):
         'start_x_rel',                       # 25
         'start_y_rel',                       # 26 
         'pca_1_z',                           # 27
+        'delta_azimuth'               #28
     ]
 
     for traj_raw in trajectories:
@@ -218,7 +219,17 @@ def extractfeatures(trajectories):
         
         # [27] PCA 1 Z
         feat_pca_1_z = abs(pca_shape.components_[0][2])
-
+        # [28]
+        feat_delta_azimuth = 0.0
+        try:
+            theta_start = np.arctan2(start_point[1], start_point[0])
+            theta_end = np.arctan2(apex_point[1], apex_point[0])
+            
+            # 각도 차이 계산
+            diff = theta_end - theta_start
+            
+            feat_delta_azimuth = np.arctan2(np.sin(diff), np.cos(diff))
+        except: pass
         # Combine
         features = np.concatenate([
             iqrs,                                    # 0, 1, 2
@@ -237,7 +248,8 @@ def extractfeatures(trajectories):
             [feat_ldlj, feat_dwt],                   # 22, 23
             [feat_linearity_resid],                  # 24 
             [feat_start_x_rel, feat_start_y_rel],    # 25, 26
-            [feat_pca_1_z]                           # 27
+            [feat_pca_1_z],                           # 27
+            [feat_delta_azimuth]           #28
         ])
         
         feature_list.append(features)

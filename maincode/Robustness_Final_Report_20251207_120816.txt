@@ -1,0 +1,36 @@
+=== Robustness Test Report (20251207_120816) ===
+
+[Model Hyperplanes]
+M1: (-0.50*ratio_pca_resid) + (0.37*xy_area_resid) + (-0.38*radius_ratio_resid) + (-0.46*helix_thickness) + (-0.23*deviation_max) + 0.61 = 0
+M2: (-0.25*Y_iqr) + (0.17*Z_iqr) + (-0.28*clean_range_X) + (-0.34*clean_range_Y) + (0.20*clean_range_Z) + (0.26*apex_vec_z) + (-0.28*pca_z_clean) + 1.04 = 0
+M3: (0.36*Y_iqr) + (-0.11*Z_iqr) + (-0.02*clean_range_X) + (0.38*clean_range_Y) + (-0.11*clean_range_Z) + (-0.38*apex_vec_z) + (0.22*pca_z_clean) + 0.54 = 0
+M4: (0.12*apex_vec_x) + (-0.30*apex_vec_y) + (0.03*start_x_rel) + (0.37*start_y_rel) + (-0.36*delta_azimuth) + -0.08 = 0
+
+--- Scenario: DRIFT ---
+Level 2.0: Acc 100.00%
+Level 4.0: Acc 100.00%
+Level 6.0: Acc 100.00%
+--- Scenario: LINEAR_DRIFT ---
+Level 1.0: Acc 100.00%
+Level 3.0: Acc 100.00%
+Level 5.0: Acc 100.00%
+--- Scenario: ROTATION ---
+Level 15.0: Acc 100.00%
+Level 30.0: Acc 100.00%
+Level 40.0: Acc 100.00%
+--- Scenario: LINEAR_DISTORTION ---
+Level 200.0: Acc 100.00%
+Level 400.0: Acc 100.00%
+Level 600.0: Acc 100.00%
+--- Scenario: GAUSSIAN ---
+Level 10.0: Acc 100.00%
+Level 30.0: Acc 100.00%
+Level 50.0: Acc 100.00%
+--- Scenario: SPIKE ---
+Level 500.0: Acc 100.00%
+Level 1000.0: Acc 100.00%
+Level 2000.0: Acc 100.00%
+--- Scenario: BIAS ---
+Level 20.0: Acc 100.00%
+Level 50.0: Acc 100.00%
+Level 100.0: Acc 100.00%

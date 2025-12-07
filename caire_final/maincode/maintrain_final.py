@@ -52,7 +52,7 @@ class HybridClassifier:
         # M3: Vertical vs Diagonal (Same as M2)
         self.select_indices_model3 = [1, 2, 6, 7, 8, 16, 18]
         # M4: Diagonal L vs R (Apex X/Y, Start Rel X/Y) - No Slope, No Corr
-        self.select_indices_model4 = [14, 15, 25, 26]
+        self.select_indices_model4 = [14, 15, 25, 26,28]
 
     def _filter_features(self, x, indices):
         return x[:, indices]

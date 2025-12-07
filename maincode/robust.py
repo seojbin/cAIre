@@ -18,7 +18,7 @@ from scipy.spatial.transform import Rotation as R
 # 사용할 피쳐 추출기 파일명
 EXTRACTOR_MODULE_NAME = 'feature_extractor' 
 
-NOISE_MODE = ['LINEAR_DISTORTION'] 
+NOISE_MODE = ['DRIFT'] 
 primary_mode = NOISE_MODE[0] if isinstance(NOISE_MODE, list) else NOISE_MODE
 
 if primary_mode == 'GAUSSIAN':
@@ -28,7 +28,7 @@ elif primary_mode == 'SPIKE':
 elif primary_mode == 'DRIFT':
     STRESS_LEVELS = [2.0, 4.0, 6.0]
 elif primary_mode == 'ROTATION':
-    STRESS_LEVELS = [5.0, 15.0, 30.0, 40.0]
+    STRESS_LEVELS = [5.0, 15.0, 45.0, 90.0]
 elif primary_mode == 'BIAS':
     STRESS_LEVELS = [20.0, 50.0, 100.0, 200.0]
 elif primary_mode == 'LINEAR_DRIFT':
@@ -49,7 +49,7 @@ ITERATIONS = 5
 # 피쳐 설정 (비교 대상)
 FEATURE_CONFIGS = {
     "Baseline": {
-        "M1": [9, 11,13,17, 19, 20],
+        "M1": [9, 11,17, 19, 20],
         "M2": [ 1,2,6, 7, 8, 16,18],
         "M3": [1,2,6, 7, 8, 16,18],
         "M4": [14, 15,25,26]   
@@ -58,7 +58,7 @@ FEATURE_CONFIGS = {
         "M1": [9, 11, 17, 19, 20],
         "M2": [ 1,2,6, 7, 8, 16, 18],
         "M3": [1,2,6, 7, 8, 16, 18],
-        "M4": [14,15,25,26]   
+        "M4": [14,15,25,26,28]   
     },
 }
 
