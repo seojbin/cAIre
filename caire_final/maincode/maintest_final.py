@@ -13,13 +13,13 @@ current = os.path.abspath(__file__)
 script_dir = os.path.dirname(current)
 project_root = os.path.dirname(script_dir)
 
-TEST_DATA_PATH = os.path.join(project_root, 'newdata')
+TEST_DATA_PATH = os.path.join(project_root, 'testdata')
 MODEL_PATH = os.path.join(script_dir, 'mainmodel_final.joblib')
 
 sys.path.append(project_root)
 
 try:
-    from postprocess.preprocess import load, label
+    from postprocess.preprocess import label 
     from postprocess.feature_extractor import extractfeatures
     from maincode.maintrain_final import HybridClassifier 
 except ImportError as e:
@@ -81,7 +81,6 @@ def visualize_model_test(model_clf, scaler, select_indices, x_data, y_true, titl
     ax.set_title(title)
     plt.legend()
     plt.savefig(save_path)
-    # plt.show() 
 
     return hyperplane_eq
 
@@ -125,7 +124,7 @@ def run_demo():
     log_path = os.path.join(result_dir, "test_log.txt")
     log_file = open(log_path, "w", encoding="utf-8")
 
-    def print_log(msg):
+    def print_log(msg): 
         log_file.write(msg + "\n")
 
     print_log(f"Date: {timestamp}")
@@ -137,43 +136,47 @@ def run_demo():
         return
 
     model = joblib.load(MODEL_PATH)
+    print_log("Model loaded")
 
     if not os.path.exists(TEST_DATA_PATH):
-        print_log(f"Error: Data path '{TEST_DATA_PATH}' does not exist")
+        print_log(f"Error: Data path '{TEST_DATA_PATH}' does not exist!")
         return
-
-    x_test, y_true = load(TEST_DATA_PATH)
     
+    test_files = sorted([f for f in os.listdir(TEST_DATA_PATH) if f.endswith('.txt')])
+    x_test = []
+    
+    for f in test_files:
+        file_path = os.path.join(TEST_DATA_PATH, f)
+        try:
+            data = np.loadtxt(file_path, delimiter=',')
+        except:
+            data = np.loadtxt(file_path)
+        x_test.append(data)
+    
+    x_test = np.array(x_test, dtype=object)
+    y_true = [] 
+
     if len(x_test) == 0:
         print_log("Error: No data found.")
         return
-    print_log(f"   -> Loaded {len(x_test)} samples.")
+    print_log(f"Loaded {len(x_test)} samples.")
 
-    print_log(">> Extracting features...")
     x_features, feature_names = extractfeatures(x_test)
     
-    print_log(">> Running inference...")
     y_pred = model.predict(x_features)
     
     classnames = list(label.keys())
     inv_label = {v: k for k, v in label.items()}
     
-    print_log("\n" + "="*40)
-    print_log("       PREDICTION RESULTS       ")
-    print_log("="*40)
+    print_log("RESULTS")
     
     correct_cnt = 0
-    has_label = (len(y_true) == len(y_pred))
+    has_label = False 
 
     for i in range(len(y_pred)):
         pred_name = inv_label[y_pred[i]]
-        if has_label:
-            true_name = inv_label[y_true[i]]
-            mark = "O" if y_pred[i] == y_true[i] else "X"
-            if mark == "O": correct_cnt += 1
-            print_log(f"Sample {i+1:02d}: Pred={pred_name:<15} | True={true_name:<15} [{mark}]")
-        else:
-            print_log(f"Sample {i+1:02d}: Pred={pred_name}")
+        fname = test_files[i] if i < len(test_files) else f"test_{i+1}.txt"
+        print_log(f"{fname}: {pred_name}")
 
     if has_label:
         acc = correct_cnt / len(y_pred) * 100
@@ -197,6 +200,8 @@ def run_demo():
         except: pass
         if correct_cnt < len(y_pred):
             visualize_failed_samples(x_test, y_true, y_pred, result_dir)
+
+    y_vis_dummy = np.zeros(len(x_features)) 
     try:
         eq1 = visualize_model_test(model.model1, model.scaler1, model.select_indices_model1, x_features, y_true, 
                         "Test M1: Circle vs Rest", os.path.join(result_dir, "M1_vis.png"),
@@ -204,32 +209,25 @@ def run_demo():
                          label['diagonal_left']: 1, label['diagonal_right']: 1}, feature_names)
         log_file.write(f"\n{eq1}\n")
         
-        if has_label:
-            m2_mask = (y_true != label['circle'])
-            if np.sum(m2_mask) > 0:
-                eq2 = visualize_model_test(model.model2, model.scaler2, model.select_indices_model2, 
-                                x_features[m2_mask], y_true[m2_mask], 
-                                "Test M2: Horizontal vs Rest", os.path.join(result_dir, "M2_vis.png"),
-                                {label['horizontal']: 0, label['vertical']: 1, 
-                                 label['diagonal_left']: 1, label['diagonal_right']: 1}, feature_names)
-                log_file.write(f"{eq2}\n")
-                
-            m3_mask = m2_mask & (y_true != label['horizontal'])
-            if np.sum(m3_mask) > 0:
-                eq3 = visualize_model_test(model.model3, model.scaler3, model.select_indices_model3, 
-                                x_features[m3_mask], y_true[m3_mask], 
-                                "Test M3: Vertical vs Diagonal", os.path.join(result_dir, "M3_vis.png"),
-                                {label['vertical']: 0, label['diagonal_left']: 1, 
-                                 label['diagonal_right']: 1}, feature_names)
-                log_file.write(f"{eq3}\n")
+        eq2 = visualize_model_test(model.model2, model.scaler2, model.select_indices_model2, 
+                        x_features, y_true, 
+                        "Test M2: Horizontal vs Rest", os.path.join(result_dir, "M2_vis.png"),
+                        {label['horizontal']: 0, label['vertical']: 1, 
+                            label['diagonal_left']: 1, label['diagonal_right']: 1}, feature_names)
+        log_file.write(f"{eq2}\n")
+            
+        eq3 = visualize_model_test(model.model3, model.scaler3, model.select_indices_model3, 
+                        x_features, y_true, 
+                        "Test M3: Vertical vs Diagonal", os.path.join(result_dir, "M3_vis.png"),
+                        {label['vertical']: 0, label['diagonal_left']: 1, 
+                            label['diagonal_right']: 1}, feature_names)
+        log_file.write(f"{eq3}\n")
 
-            m4_mask = m3_mask & (y_true != label['vertical'])
-            if np.sum(m4_mask) > 0:
-                eq4 = visualize_model_test(model.model4, model.scaler4, model.select_indices_model4, 
-                                x_features[m4_mask], y_true[m4_mask], 
-                                "Test M4: Diag L vs R (Apex)", os.path.join(result_dir, "M4_vis.png"),
-                                {label['diagonal_left']: 0, label['diagonal_right']: 1}, feature_names)
-                log_file.write(f"{eq4}\n")
+        eq4 = visualize_model_test(model.model4, model.scaler4, model.select_indices_model4, 
+                        x_features, y_true, 
+                        "Test M4: Diag L vs R (Apex)", os.path.join(result_dir, "M4_vis.png"),
+                        {label['diagonal_left']: 0, label['diagonal_right']: 1}, feature_names)
+        log_file.write(f"{eq4}\n")
                 
     except Exception as e:
         print_log(f"Visualization Error: {e}")
@@ -238,18 +236,13 @@ def run_demo():
 
     submission_path = os.path.join(result_dir, "submission.txt")
     sub_file = open(submission_path, "w", encoding="utf-8")
-    test_files = sorted([f for f in os.listdir(TEST_DATA_PATH) if f.endswith('.txt')])
     
-    if len(test_files) == len(y_pred):
-        for fname, pred in zip(test_files, y_pred):
-            res_str = f"{fname}: {inv_label[pred]}"
-            print(res_str)
-            sub_file.write(res_str + "\n")
-    else:
-        for i, pred in enumerate(y_pred):
-            res_str = f"test_{i+1}.txt: {inv_label[pred]}"
-            print(res_str)
-            sub_file.write(res_str + "\n")
+    for i, pred in enumerate(y_pred):
+        pred_name = inv_label[pred]
+        fname = test_files[i] if i < len(test_files) else f"test_{i+1}.txt"
+        res_str = f"{fname}: {pred_name}"
+        print(res_str)
+        sub_file.write(res_str + "\n")
             
     sub_file.close()
 
