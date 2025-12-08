@@ -44,14 +44,13 @@ class HybridClassifier:
         self.cho = label['horizontal']
         self.cve = label['vertical']
 
-        # [FINAL FEATURE SELECTION] Robustness Verified
-        # M1: Circle vs Rest (Ratio, Area, Radius, Helix, DevMax) - No Corr, No Linearity
+        # M1: Circle vs Rest (Ratio, Area, Radius, Helix, DevMax)
         self.select_indices_model1 = [9, 11, 17, 19, 20] 
         # M2: Horizontal vs Rest (Clean Range X/Y/Z, Apex Z, PCA Z)
         self.select_indices_model2 = [1, 2, 6, 7, 8, 16, 18]
         # M3: Vertical vs Diagonal (Same as M2)
         self.select_indices_model3 = [1, 2, 6, 7, 8, 16, 18]
-        # M4: Diagonal L vs R (Apex X/Y, Start Rel X/Y) - No Slope, No Corr
+        # M4: Diagonal L vs R (Apex X/Y, Start Rel X/Y)
         self.select_indices_model4 = [14, 15, 25, 26,28]
 
     def _filter_features(self, x, indices):
