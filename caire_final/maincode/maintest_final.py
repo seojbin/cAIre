@@ -13,7 +13,6 @@ current = os.path.abspath(__file__)
 script_dir = os.path.dirname(current)
 project_root = os.path.dirname(script_dir)
 
-# 데모 경로
 TEST_DATA_PATH = os.path.join(project_root, 'newdata')
 MODEL_PATH = os.path.join(script_dir, 'mainmodel_final.joblib')
 
@@ -40,8 +39,7 @@ def visualize_model_test(model_clf, scaler, select_indices, x_data, y_true, titl
     b = model_clf.intercept_[0]
     eq_parts = [f"({w[i]:.2f}*{feature_names[select_indices[i]]})" for i in range(len(w))]
     hyperplane_eq = f"[{title}] Hyperplane: {' + '.join(eq_parts)} + {b:.2f} = 0"
-    print(f"\n{hyperplane_eq}")
-
+    
     if x_f.shape[1] >= 3:
         pca = PCA(n_components=3)
         x_vis = pca.fit_transform(x_s)
@@ -83,9 +81,10 @@ def visualize_model_test(model_clf, scaler, select_indices, x_data, y_true, titl
     ax.set_title(title)
     plt.legend()
     plt.savefig(save_path)
-    plt.show() 
+    # plt.show() 
 
     return hyperplane_eq
+
 def visualize_failed_samples(x_raw, y_true, y_pred, save_dir):
     inv_label = {v: k for k, v in label.items()}
     failed_indices = np.where(y_true != y_pred)[0]
@@ -119,7 +118,6 @@ def visualize_failed_samples(x_raw, y_true, y_pred, save_dir):
         plt.close()
 
 def run_demo():
-    # 결과 저장 폴더 생성
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     result_dir = os.path.join(script_dir, f"test_results_{timestamp}")
     os.makedirs(result_dir, exist_ok=True)
@@ -128,10 +126,8 @@ def run_demo():
     log_file = open(log_path, "w", encoding="utf-8")
 
     def print_log(msg):
-        print(msg)
         log_file.write(msg + "\n")
 
-    print_log(f"=== AI Model Live Demo ===")
     print_log(f"Date: {timestamp}")
     print_log(f"Target Data Path: {TEST_DATA_PATH}")
     print_log(f"Model File: {MODEL_PATH}")
@@ -141,13 +137,11 @@ def run_demo():
         return
 
     model = joblib.load(MODEL_PATH)
-    print_log(">> Model loaded successfully.")
 
     if not os.path.exists(TEST_DATA_PATH):
-        print_log(f"Error: Data path '{TEST_DATA_PATH}' does not exist!")
+        print_log(f"Error: Data path '{TEST_DATA_PATH}' does not exist")
         return
 
-    print_log(">> Loading test data...")
     x_test, y_true = load(TEST_DATA_PATH)
     
     if len(x_test) == 0:
@@ -203,8 +197,6 @@ def run_demo():
         except: pass
         if correct_cnt < len(y_pred):
             visualize_failed_samples(x_test, y_true, y_pred, result_dir)
-    # Visualization & Hyperplane Logging
-    print_log("\nGenerating Visualizations...")
     try:
         eq1 = visualize_model_test(model.model1, model.scaler1, model.select_indices_model1, x_features, y_true, 
                         "Test M1: Circle vs Rest", os.path.join(result_dir, "M1_vis.png"),
@@ -243,7 +235,23 @@ def run_demo():
         print_log(f"Visualization Error: {e}")
 
     log_file.close()
-    print(f"\nAll results saved to '{result_dir}'")
+
+    submission_path = os.path.join(result_dir, "submission.txt")
+    sub_file = open(submission_path, "w", encoding="utf-8")
+    test_files = sorted([f for f in os.listdir(TEST_DATA_PATH) if f.endswith('.txt')])
+    
+    if len(test_files) == len(y_pred):
+        for fname, pred in zip(test_files, y_pred):
+            res_str = f"{fname}: {inv_label[pred]}"
+            print(res_str)
+            sub_file.write(res_str + "\n")
+    else:
+        for i, pred in enumerate(y_pred):
+            res_str = f"test_{i+1}.txt: {inv_label[pred]}"
+            print(res_str)
+            sub_file.write(res_str + "\n")
+            
+    sub_file.close()
 
 if __name__ == "__main__":
     run_demo()
