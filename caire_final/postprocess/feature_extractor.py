@@ -41,7 +41,8 @@ def extractfeatures(trajectories):
         'start_x_rel',                       # 25
         'start_y_rel',                       # 26 
         'pca_1_z',                           # 27
-        'delta_azimuth'               #28
+        'delta_azimuth',               #28
+        'xy_diag_sum'                        # 29
     ]
 
     for traj_raw in trajectories:
@@ -230,6 +231,7 @@ def extractfeatures(trajectories):
             
             feat_delta_azimuth = np.arctan2(np.sin(diff), np.cos(diff))
         except: pass
+        feat_xy_diag_sum = np.sqrt(feat_ranges[0]**2 + feat_ranges[1]**2)
         # Combine
         features = np.concatenate([
             iqrs,                                    # 0, 1, 2
@@ -249,7 +251,8 @@ def extractfeatures(trajectories):
             [feat_linearity_resid],                  # 24 
             [feat_start_x_rel, feat_start_y_rel],    # 25, 26
             [feat_pca_1_z],                           # 27
-            [feat_delta_azimuth]           #28
+            [feat_delta_azimuth],           #28
+            [feat_xy_diag_sum]                   # 29
         ])
         
         feature_list.append(features)

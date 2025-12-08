@@ -2,6 +2,7 @@ import numpy as np
 import joblib
 import sys
 import os
+import glob
 import matplotlib.pyplot as plt
 from sklearn.metrics import classification_report, confusion_matrix
 from sklearn.decomposition import PCA
@@ -19,7 +20,7 @@ MODEL_PATH = os.path.join(script_dir, 'mainmodel_final.joblib')
 sys.path.append(project_root)
 
 try:
-    from postprocess.preprocess import label 
+    from postprocess.preprocess import label, parse
     from postprocess.feature_extractor import extractfeatures
     from maincode.maintrain_final import HybridClassifier 
 except ImportError as e:
@@ -28,7 +29,7 @@ except ImportError as e:
     exit()
 
 def visualize_model_test(model_clf, scaler, select_indices, x_data, y_true, title, save_path, label_map, feature_names):
-    if len(x_data) == 0: return
+    if len(x_data) == 0: return ""
     x_f = x_data[:, select_indices]
     x_s = scaler.transform(x_f)
 
@@ -54,67 +55,14 @@ def visualize_model_test(model_clf, scaler, select_indices, x_data, y_true, titl
     else:
         x_vis = np.hstack([x_s, np.zeros((len(x_s), 3 - x_s.shape[1]))])
 
-    preds = model_clf.predict(x_s)
-    colors = ['blue', 'red']
-    inv_label = {v: k for k, v in label.items()}
-    has_label = (len(y_true) == len(preds))
-
-    if has_label:
-        for cls_label, target_val in label_map.items():
-            idxs = np.where(y_true == cls_label)[0]
-            if len(idxs) == 0: continue
-            
-            correct = idxs[preds[idxs] == target_val]
-            wrong = idxs[preds[idxs] != target_val]
-            c = colors[target_val] if target_val < 2 else 'green'
-            lbl = inv_label[cls_label]
-            
-            if len(correct) > 0:
-                ax.scatter(x_vis[correct, 0], x_vis[correct, 1], x_vis[correct, 2], 
-                           c=c, marker='o', s=40, alpha=0.7, label=f'{lbl}')
-            if len(wrong) > 0:
-                ax.scatter(x_vis[wrong, 0], x_vis[wrong, 1], x_vis[wrong, 2], 
-                           c=c, marker='x', s=100, label=f'{lbl} (Wrong)')
-    else:
-        ax.scatter(x_vis[:, 0], x_vis[:, 1], x_vis[:, 2], c='black', marker='o', s=40, label='Test Data')
+    ax.scatter(x_vis[:, 0], x_vis[:, 1], x_vis[:, 2], c='black', marker='o', s=40, label='Test Data')
 
     ax.set_title(title)
     plt.legend()
     plt.savefig(save_path)
+    plt.close()
 
     return hyperplane_eq
-
-def visualize_failed_samples(x_raw, y_true, y_pred, save_dir):
-    inv_label = {v: k for k, v in label.items()}
-    failed_indices = np.where(y_true != y_pred)[0]
-    
-    if len(failed_indices) == 0:
-        return
-
-    fail_dir = os.path.join(save_dir, "failed_samples")
-    os.makedirs(fail_dir, exist_ok=True)
-
-    for idx in failed_indices:
-        traj = x_raw[idx]
-        true_lbl = inv_label[y_true[idx]]
-        pred_lbl = inv_label[y_pred[idx]]
-        
-        fig = plt.figure(figsize=(8, 6))
-        ax = fig.add_subplot(111, projection='3d')
-        
-        ax.plot(traj[:,0], traj[:,1], traj[:,2], label='Trajectory', color='red')
-        ax.scatter(traj[0,0], traj[0,1], traj[0,2], c='green', marker='o', s=50, label='Start')
-        ax.scatter(traj[-1,0], traj[-1,1], traj[-1,2], c='blue', marker='x', s=50, label='End')
-        
-        ax.set_title(f"Sample {idx}: True[{true_lbl}] vs Pred[{pred_lbl}]")
-        ax.set_xlabel('X')
-        ax.set_ylabel('Y')
-        ax.set_zlabel('Z')
-        ax.legend()
-        
-        filename = f"Fail_ID{idx}_True_{true_lbl}_Pred_{pred_lbl}.png"
-        plt.savefig(os.path.join(fail_dir, filename))
-        plt.close()
 
 def run_demo():
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -127,124 +75,99 @@ def run_demo():
     def print_log(msg): 
         log_file.write(msg + "\n")
 
+    print_log(f"=== AI Model Live Demo ===")
     print_log(f"Date: {timestamp}")
     print_log(f"Target Data Path: {TEST_DATA_PATH}")
     print_log(f"Model File: {MODEL_PATH}")
     
     if not os.path.exists(MODEL_PATH):
-        print_log(f"Error: Model file '{MODEL_PATH}' not found!")
+        print(f"Error: Model file '{MODEL_PATH}' not found!")
         return
 
     model = joblib.load(MODEL_PATH)
-    print_log("Model loaded")
 
     if not os.path.exists(TEST_DATA_PATH):
-        print_log(f"Error: Data path '{TEST_DATA_PATH}' does not exist!")
+        print(f"Error: Data path '{TEST_DATA_PATH}' does not exist!")
         return
+
     
-    test_files = sorted([f for f in os.listdir(TEST_DATA_PATH) if f.endswith('.txt')])
+    test_files = sorted(glob.glob(os.path.join(TEST_DATA_PATH, '*.txt')))
+    
     x_test = []
-    
-    for f in test_files:
-        file_path = os.path.join(TEST_DATA_PATH, f)
-        try:
-            data = np.loadtxt(file_path, delimiter=',')
-        except:
-            data = np.loadtxt(file_path)
-        x_test.append(data)
-    
+    valid_filenames = []
+
+    for fpath in test_files:
+        data = parse(fpath)
+        if data is not None and len(data) > 0:
+            x_test.append(data)
+            valid_filenames.append(os.path.basename(fpath))
+        else:
+            print_log(f"Warning: Failed to parse {os.path.basename(fpath)}")
+
     x_test = np.array(x_test, dtype=object)
-    y_true = [] 
+    
+    y_true = np.zeros(len(x_test)) 
 
     if len(x_test) == 0:
-        print_log("Error: No data found.")
+        print("Error: No valid data found.")
         return
-    print_log(f"Loaded {len(x_test)} samples.")
+    print_log(f"   -> Loaded {len(x_test)} valid samples.")
 
-    x_features, feature_names = extractfeatures(x_test)
+    print_log(">> Extracting features...")
+    try:
+        x_features, feature_names = extractfeatures(x_test)
+    except Exception as e:
+        print(f"Feature Extraction Error: {e}")
+        return
     
     y_pred = model.predict(x_features)
     
-    classnames = list(label.keys())
     inv_label = {v: k for k, v in label.items()}
     
-    print_log("RESULTS")
+    submission_path = os.path.join(result_dir, "submission.txt")
+    sub_file = open(submission_path, "w", encoding="utf-8")
     
-    correct_cnt = 0
-    has_label = False 
-
-    for i in range(len(y_pred)):
-        pred_name = inv_label[y_pred[i]]
-        fname = test_files[i] if i < len(test_files) else f"test_{i+1}.txt"
-        print_log(f"{fname}: {pred_name}")
-
-    if has_label:
-        acc = correct_cnt / len(y_pred) * 100
-        print_log(f"Final Accuracy: {acc:.2f}% ({correct_cnt}/{len(y_pred)})")
+    for i, pred in enumerate(y_pred):
+        pred_name = inv_label[pred]
+        fname = valid_filenames[i]
         
-        report = classification_report(y_true, y_pred, target_names=classnames, zero_division=0)
-        print_log("\n[Classification Report]")
-        print_log(report)
+        res_str = f"{fname}: {pred_name}"
         
-        try:
-            cm = confusion_matrix(y_true, y_pred)
-            plt.figure(figsize=(8, 6))
-            sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
-                        xticklabels=classnames, yticklabels=classnames)
-            plt.title(f'Demo Result (Acc: {acc:.1f}%)')
-            plt.ylabel('True Label')
-            plt.xlabel('Predicted Label')
-            plt.tight_layout()
-            plt.savefig(os.path.join(result_dir, "confusion_matrix.png"))
-            plt.close()
-        except: pass
-        if correct_cnt < len(y_pred):
-            visualize_failed_samples(x_test, y_true, y_pred, result_dir)
+        print(res_str)
+        sub_file.write(res_str + "\n")
+        print_log(f"Sample {i+1:02d}: {res_str}") 
 
-    y_vis_dummy = np.zeros(len(x_features)) 
+    sub_file.close()
+
     try:
-        eq1 = visualize_model_test(model.model1, model.scaler1, model.select_indices_model1, x_features, y_true, 
+        eq1 = visualize_model_test(model.model1, model.scaler1, model.select_indices_model1, 
+                        x_features, y_true, 
                         "Test M1: Circle vs Rest", os.path.join(result_dir, "M1_vis.png"),
-                        {label['circle']: 0, label['horizontal']: 1, label['vertical']: 1, 
-                         label['diagonal_left']: 1, label['diagonal_right']: 1}, feature_names)
+                        {}, feature_names)
         log_file.write(f"\n{eq1}\n")
         
         eq2 = visualize_model_test(model.model2, model.scaler2, model.select_indices_model2, 
                         x_features, y_true, 
                         "Test M2: Horizontal vs Rest", os.path.join(result_dir, "M2_vis.png"),
-                        {label['horizontal']: 0, label['vertical']: 1, 
-                            label['diagonal_left']: 1, label['diagonal_right']: 1}, feature_names)
+                        {}, feature_names)
         log_file.write(f"{eq2}\n")
             
         eq3 = visualize_model_test(model.model3, model.scaler3, model.select_indices_model3, 
                         x_features, y_true, 
                         "Test M3: Vertical vs Diagonal", os.path.join(result_dir, "M3_vis.png"),
-                        {label['vertical']: 0, label['diagonal_left']: 1, 
-                            label['diagonal_right']: 1}, feature_names)
+                        {}, feature_names)
         log_file.write(f"{eq3}\n")
 
         eq4 = visualize_model_test(model.model4, model.scaler4, model.select_indices_model4, 
                         x_features, y_true, 
                         "Test M4: Diag L vs R (Apex)", os.path.join(result_dir, "M4_vis.png"),
-                        {label['diagonal_left']: 0, label['diagonal_right']: 1}, feature_names)
+                        {}, feature_names)
         log_file.write(f"{eq4}\n")
                 
     except Exception as e:
         print_log(f"Visualization Error: {e}")
 
     log_file.close()
-
-    submission_path = os.path.join(result_dir, "submission.txt")
-    sub_file = open(submission_path, "w", encoding="utf-8")
-    
-    for i, pred in enumerate(y_pred):
-        pred_name = inv_label[pred]
-        fname = test_files[i] if i < len(test_files) else f"test_{i+1}.txt"
-        res_str = f"{fname}: {pred_name}"
-        print(res_str)
-        sub_file.write(res_str + "\n")
-            
-    sub_file.close()
 
 if __name__ == "__main__":
     run_demo()

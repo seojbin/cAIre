@@ -131,7 +131,6 @@ def run_demo():
         print(msg)
         log_file.write(msg + "\n")
 
-    print_log(f"=== AI Model Live Demo ===")
     print_log(f"Date: {timestamp}")
     print_log(f"Target Data Path: {TEST_DATA_PATH}")
     print_log(f"Model File: {MODEL_PATH}")
@@ -147,7 +146,6 @@ def run_demo():
         print_log(f"Error: Data path '{TEST_DATA_PATH}' does not exist!")
         return
 
-    print_log(">> Loading test data...")
     x_test, y_true = load(TEST_DATA_PATH)
     
     if len(x_test) == 0:
@@ -163,10 +161,8 @@ def run_demo():
     
     classnames = list(label.keys())
     inv_label = {v: k for k, v in label.items()}
-    
-    print_log("\n" + "="*40)
-    print_log("       PREDICTION RESULTS       ")
-    print_log("="*40)
+
+    print_log("PREDICTION RESULTS")
     
     correct_cnt = 0
     has_label = (len(y_true) == len(y_pred))
