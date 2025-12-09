@@ -12,7 +12,6 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 from mpl_toolkits.mplot3d import Axes3D
 
-# CONFIGURATION
 EXTRACTOR_MODULE_NAME = 'feature_extractor' 
 
 NOISE_SCENARIOS = {
@@ -389,7 +388,7 @@ def main():
                                      f"{vis_dir}/M4_L{lvl}.png", {label['diagonal_left']: 0, label['diagonal_right']: 1})
     
     report_file.close()
-    print(f"\nDone. Report saved to {report_file.name}")
+    print(f"\nReport saved to {report_file.name}")
     print(f"Visualizations saved to vis_{timestamp}/")
 
 if __name__ == "__main__":

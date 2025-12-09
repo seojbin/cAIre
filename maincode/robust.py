@@ -10,11 +10,6 @@ from sklearn.model_selection import StratifiedShuffleSplit
 from sklearn.svm import SVC
 from sklearn.preprocessing import StandardScaler
 from scipy.spatial.transform import Rotation as R
-
-# =========================================================
-#  CONFIGURATION
-# =========================================================
-
 # 사용할 피쳐 추출기 파일명
 EXTRACTOR_MODULE_NAME = 'feature_extractor' 
 
@@ -32,21 +27,18 @@ elif primary_mode == 'ROTATION':
 elif primary_mode == 'BIAS':
     STRESS_LEVELS = [20.0, 50.0, 100.0, 200.0]
 elif primary_mode == 'LINEAR_DRIFT':
-    # 직선형 이탈
     STRESS_LEVELS = [2.0, 4.0, 6.0]
 elif primary_mode == 'LINEAR_DISTORTION':
-    # 곡선형 왜곡
     STRESS_LEVELS = [200.0, 400.0, 600.0]
 else:
-    # 기본값 (매칭되는 모드가 없을 경우)
     STRESS_LEVELS = [1.0, 5.0, 10.0]
-    print(f"Warning: No preset found for {primary_mode}. Using default levels.")
+    print(f"No preset found for {primary_mode}.")
 
 VAL_COPY_N = 10
 TRAIN_AUG_N = 9
 ITERATIONS = 5
 
-# 피쳐 설정 (비교 대상)
+# 피쳐 설정
 FEATURE_CONFIGS = {
     "Baseline": {
         "M1": [9, 11,17, 19, 20],
@@ -67,17 +59,15 @@ script_dir = os.path.dirname(current)
 project_root = os.path.dirname(script_dir)
 sys.path.append(project_root)
 
-# 동적 모듈 로딩
 try:
     from postprocess.preprocess import load, label, augmentdata, remove_spikes, smooth_trajectory
     
-    print(f">> Loading Feature Extractor from: postprocess.{EXTRACTOR_MODULE_NAME} ...")
+    print(f"Loading Feature Extractor {EXTRACTOR_MODULE_NAME} ...")
     extractor_module = importlib.import_module(f"postprocess.{EXTRACTOR_MODULE_NAME}")
     extractfeatures = extractor_module.extractfeatures
     
 except ImportError as e:
-    print(f"Error: Failed to import module. {e}")
-    print(f"Make sure '{EXTRACTOR_MODULE_NAME}.py' exists in 'postprocess' folder.")
+    print(f"Failed to import module. {e}")
     exit()
 
 inv_label = {v: k for k, v in label.items()}

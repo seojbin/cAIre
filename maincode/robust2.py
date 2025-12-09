@@ -24,13 +24,10 @@ CONFIGS = {
     },
 }
 
-ITERATIONS = 30       # 통계적 유의성을 위해 최소 30회 권장
+ITERATIONS = 30
 NOISE_MODE = 'LINEAR_DISTORTION'
-STRESS_LEVEL = 600.0    # 차이가 가장 잘 드러나는 난이도 설정
+STRESS_LEVEL = 600.0
 
-# ==========================================
-# 2. 환경 설정 (기존 코드와 동일)
-# ==========================================
 current = os.path.abspath(__file__)
 script_dir = os.path.dirname(current)
 project_root = os.path.dirname(script_dir)
@@ -43,11 +40,8 @@ except ImportError:
     print("Error: Postprocess package not found. 프로젝트 루트에서 실행해주세요.")
     exit()
 
-label_dict = label # {'circle': 0, ...}
+label_dict = label
 
-# ==========================================
-# 3. 노이즈 함수 (기존 코드 재사용)
-# ==========================================
 def add_noise_for_test(traj, mode, level):
     new_traj = traj.copy()
     if mode == 'GAUSSIAN':
@@ -91,9 +85,6 @@ def add_noise_for_test(traj, mode, level):
     # 필요한 다른 모드 추가 가능
     return new_traj
 
-# ==========================================
-# 4. 분류기 클래스 (검증용 경량화 버전)
-# ==========================================
 class HybridVerifier:
     def __init__(self, config_indices):
         self.indices = config_indices
@@ -161,9 +152,6 @@ class HybridVerifier:
             
         return ypred
 
-# ==========================================
-# 5. 메인 검증 로직
-# ==========================================
 def main():
     # 데이터 로드
     data_path = os.path.join(project_root, 'data')
@@ -191,18 +179,17 @@ def main():
     scores = {'Baseline': [], 'Proposed': []}
     
     for i, (train_idx, val_idx) in enumerate(sss.split(x_all, y_all)):
-        # 1. 데이터 분할
         x_train_raw = [x_all[k] for k in train_idx]
         y_train = y_all[train_idx]
         x_val_raw = [x_all[k] for k in val_idx]
         y_val = y_all[val_idx]
         
-        # 2. 학습 데이터 증강 및 피쳐 추출
+
         with open(os.devnull, "w") as f, contextlib.redirect_stdout(f):
             x_aug, y_aug = augmentdata(x_train_raw, y_train, n=9)
             x_feat_train, _ = extractfeatures(x_aug)
         
-        # 3. 검증 데이터 노이즈 주입 (중요: 두 모델에 *똑같은* 노이즈 데이터를 줘야 공평함)
+
         x_val_noisy = []
         y_val_expanded = []
         
@@ -210,7 +197,6 @@ def main():
             # 원본
             x_val_noisy.append(traj)
             y_val_expanded.append(y_val[j])
-            # 노이즈 복사본 (10개)
             for _ in range(10):
                 noisy_traj = add_noise_for_test(traj, NOISE_MODE, STRESS_LEVEL)
                 # 전처리 적용
@@ -223,8 +209,7 @@ def main():
         
         with open(os.devnull, "w") as f, contextlib.redirect_stdout(f):
             x_feat_val, _ = extractfeatures(x_val_noisy)
-            
-        # 4. 두 모델 평가
+
         # Baseline
         clf_base = HybridVerifier(CONFIGS["Baseline"])
         clf_base.fit(x_feat_train, y_aug)
@@ -241,13 +226,10 @@ def main():
         
         print(f"Iter {i+1:02d} | Base: {acc_base:.2%} | Prop: {acc_prop:.2%} | Diff: {acc_prop - acc_base:+.2%}")
 
-    # ==========================================
-    # 6. 통계적 결론 도출 (T-Test)
-    # ==========================================
     base_arr = np.array(scores['Baseline'])
     prop_arr = np.array(scores['Proposed'])
     
-    # Paired T-test
+    #Ttest
     t_stat, p_val = ttest_rel(base_arr, prop_arr)
     mean_diff = np.mean(prop_arr - base_arr)
     
