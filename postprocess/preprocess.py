@@ -13,27 +13,19 @@ label = {
     'horizontal': 3,
     'vertical': 4
 }
-
-# 열 인덱스
+#endpoint
 index = 6
 
 
 def remove_spikes(traj, threshold_std=3.0):
-    """
-    연속된 두 점 사이의 거리가 평균 거리보다 비정상적으로 클 경우(튀는 값) 제거
-    """
     if len(traj) < 3: return traj
 
-    # 각 점 사이의 유클리드 거리 계산
     diffs = np.linalg.norm(np.diff(traj, axis=0), axis=1)
     mean_dist = np.mean(diffs)
     std_dist = np.std(diffs)
 
-    # 임계값 설정 (평균 + N * 표준편차)
     limit = mean_dist + (threshold_std * std_dist) + 1e-6  # 0.0 방지
-
-    # 튀는 구간(Jump)이 있는지 마스킹
-    # 첫 점은 유지(True), 이후 점들은 거리가 limit보다 작아야 유지
+    # 첫 점은 유지 이후 점들은 거리가 limit보다 작아야 유지
     mask = [True]
     for d in diffs:
         if d < limit:
@@ -45,19 +37,15 @@ def remove_spikes(traj, threshold_std=3.0):
 
 
 def smooth_trajectory(traj, window_size=3):
-    """
-    이동 평균 필터(Moving Average)를 사용하여 궤적을 부드럽게 만듦 (노이즈 제거)
-    """
+
     if len(traj) < window_size: return traj
 
     df = pd.DataFrame(traj)
-    # 중심을 기준으로 이동 평균, 양끝은 원본 유지 혹은 fill
     smoothed = df.rolling(window=window_size, center=True, min_periods=1).mean()
     return smoothed.values
 
 
 def parse(path):
-    # 단일 궤적 파일 to (N, 3) 형태의 array로 파싱
     try:
         with open(path, 'r', encoding='utf-8') as f:
             lines = f.readlines()
@@ -78,7 +66,6 @@ def parse(path):
 
         series = df[index].astype(str).apply(lambda s: s.split('/'))
 
-        # 데이터가 비어있거나 형식이 안 맞는 경우 예외처리
         valid_rows = series.apply(lambda x: len(x) == 3)
         series = series[valid_rows]
 
@@ -120,17 +107,17 @@ def load(base):
 def augment(traj, strength=1.0, scale_r=(0.9, 1.1)):
     newtraj = traj.copy()
     n_points = len(newtraj)
-    # 1. Gaussian Noise
+    # Gaussian Noise
     noise = np.random.normal(loc=0.0, scale=strength, size=newtraj.shape)
     newtraj += noise
 
-    # 2. Scaling
+    # Scaling
     if np.random.rand() > 0.3:
         scale = np.random.uniform(scale_r[0], scale_r[1])
         newtraj *= scale
 
 
-    # 4. Rotation 
+    # Rotation
     if np.random.rand() > 0.3:
         # -15도 ~ +15도 회전
         theta = np.radians(np.random.uniform(-15, 15))
@@ -139,12 +126,14 @@ def augment(traj, strength=1.0, scale_r=(0.9, 1.1)):
         R = np.array(((c, -s, 0), (s, c, 0), (0, 0, 1)))
         newtraj = np.dot(newtraj, R.T)
 
+    # Drift
     if np.random.rand() > 0.5:
         drift_level = strength * 0.5
         drift_step = np.random.normal(loc=0.0, scale=drift_level, size=newtraj.shape)
         drift = np.cumsum(drift_step, axis=0)
         newtraj += drift
-    
+
+    #linear distortion
     if np.random.rand() > 0.7:
         distort_mag = strength * 20.0 
         drift_dir = np.random.normal(size=(1, 3))
@@ -153,6 +142,7 @@ def augment(traj, strength=1.0, scale_r=(0.9, 1.1)):
         steps = steps ** 2
         linear_distortion = steps * (drift_dir * distort_mag)
         newtraj += linear_distortion
+    #warp
     if np.random.rand() > 0.5:
         idxs = sorted(np.random.choice(len(newtraj), int(len(newtraj)*0.9), replace=False))
         newtraj = newtraj[idxs]

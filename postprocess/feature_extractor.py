@@ -20,29 +20,29 @@ def extractfeatures(trajectories):
     feature_list = []
     
     feature_names = [
-        'X_iqr', 'Y_iqr', 'Z_iqr',           # 0, 1, 2
+        'X_iqr', 'Y_iqr', 'Z_iqr',    # 0,1,2
         'ideal_length_pc1', 'max_reach', 'linearity_shape', # 3, 4, 5
         'clean_range_X', 'clean_range_Y', 'clean_range_Z', # 6, 7, 8
-        'ratio_pca_resid',                   # 9
-        'jerk_smooth',                       # 10
-        'xy_area_resid',                     # 11
-        'slope_xy_clean',                    # 12 
-        'corr_xy_clean',                     # 13 
-        'apex_vec_x', 'apex_vec_y',          # 14, 15
-        'apex_vec_z',                        # 16 
-        'radius_ratio_resid',                # 17
-        'pca_z_clean',                       # 18 
-        'helix_thickness',                   # 19
-        'deviation_max',                     # 20 
+        'ratio_pca_resid',          # 9
+        'jerk_smooth',                # 10
+        'xy_area_resid',              # 11
+        'slope_xy_clean',           # 12
+        'corr_xy_clean',            # 13
+        'apex_vec_x', 'apex_vec_y',        # 14, 15
+        'apex_vec_z',            # 16
+        'radius_ratio_resid',       # 17
+        'pca_z_clean',       # 18
+        'helix_thickness',            # 19
+        'deviation_max',             # 20
         'turn_angle_sum',                    # 21 
-        'ldlj',                              # 22
-        'dwt_energy_detail',                 # 23
-        'linearity_resid',                   # 24
-        'start_x_rel',                       # 25
-        'start_y_rel',                       # 26 
-        'pca_1_z',                           # 27
+        'ldlj',                         # 22
+        'dwt_energy_detail',            # 23
+        'linearity_resid',          # 24
+        'start_x_rel',      # 25
+        'start_y_rel',           # 26
+        'pca_1_z',             # 27
         'delta_azimuth',               #28
-        'xy_diag_sum'                        # 29
+        'xy_diag_sum'        # 29
     ]
 
     for traj_raw in trajectories:
@@ -85,7 +85,6 @@ def extractfeatures(trajectories):
         vars_resid = pca_resid.explained_variance_
         resid_spread = np.sqrt(vars_resid[1])
 
-        # ================= Feature Extraction =================
 
         # [0~2] IQR
         iqrs = iqr(traj_clean, axis=0, rng=(25, 75))
@@ -120,7 +119,7 @@ def extractfeatures(trajectories):
                 feat_xy_area = hull.volume
         except: pass
 
-        # [12, 13] Slope & Corr (MODIFIED)
+        # [12, 13] Slope & Corr
         feat_slope = 0.0
         feat_corr = 0.0
         try:
@@ -132,7 +131,7 @@ def extractfeatures(trajectories):
                 feat_slope = lr.coef_[0]
                 c = np.corrcoef(sub[:, 0], sub[:, 1])[0, 1]
                 if not np.isnan(c): 
-                    feat_corr = abs(c) # <--- [수정됨] 절대값 적용 (직선은 1.0으로 통일)
+                    feat_corr = abs(c)
         except: pass
 
         # [14~16] Apex Vector
@@ -140,20 +139,13 @@ def extractfeatures(trajectories):
         if max_reach_clean > 1e-3:
             feat_apex_vec = main_vec / max_reach_clean
 
-        # [17] Radius Ratio (MODIFIED)
+        # [17] Radius Ratio
         feat_radius_ratio = 0.0
         try:
-            # 1. 무게중심(Centroid) 계산 [수정됨]
             centroid = np.mean(traj_clean, axis=0)
-            
-            # 2. 중심으로부터의 거리 계산 [수정됨: start_point -> centroid]
             dists = np.linalg.norm(traj_clean - centroid, axis=1)
-            
-            # 3. Robust Ratio 계산 (Min/Max 방식) [수정됨: mean/std -> min/max]
-            # 원이면 min과 max가 비슷해서 1.0에 근접, 직선이면 0.0에 근접
             r_min = np.min(dists)
             r_max = np.max(dists)
-            
             if r_max > 1e-6:
                 feat_radius_ratio = r_min / r_max
         except: pass
@@ -220,37 +212,37 @@ def extractfeatures(trajectories):
         
         # [27] PCA 1 Z
         feat_pca_1_z = abs(pca_shape.components_[0][2])
-        # [28]
+        # [28] clockwork azimuth
         feat_delta_azimuth = 0.0
         try:
             theta_start = np.arctan2(start_point[1], start_point[0])
             theta_end = np.arctan2(apex_point[1], apex_point[0])
-            
-            # 각도 차이 계산
+
             diff = theta_end - theta_start
             
             feat_delta_azimuth = np.arctan2(np.sin(diff), np.cos(diff))
         except: pass
+        # [29] xy_diag
         feat_xy_diag_sum = np.sqrt(feat_ranges[0]**2 + feat_ranges[1]**2)
         # Combine
         features = np.concatenate([
             iqrs,                                    # 0, 1, 2
             [feat_length, feat_max_reach, feat_linearity_shape], # 3, 4, 5
             feat_ranges,                             # 6, 7, 8
-            [ratio_pca],                             # 9
-            [feat_jerk],                             # 10
+            [ratio_pca],                       # 9
+            [feat_jerk],                       # 10
             [feat_xy_area],                          # 11
-            [feat_slope, feat_corr],                 # 12, 13
-            feat_apex_vec,                           # 14, 15, 16
-            [feat_radius_ratio],                     # 17
-            [feat_pca_z],                            # 18
-            [feat_helix_thick],                      # 19
+            [feat_slope, feat_corr],       # 12, 13
+            feat_apex_vec,                # 14, 15, 16
+            [feat_radius_ratio],                # 17
+            [feat_pca_z],                      # 18
+            [feat_helix_thick],                # 19
             [feat_dev_max],                          # 20
-            [feat_turn],                             # 21
+            [feat_turn],                 # 21
             [feat_ldlj, feat_dwt],                   # 22, 23
-            [feat_linearity_resid],                  # 24 
+            [feat_linearity_resid],          # 24
             [feat_start_x_rel, feat_start_y_rel],    # 25, 26
-            [feat_pca_1_z],                           # 27
+            [feat_pca_1_z],                      # 27
             [feat_delta_azimuth],           #28
             [feat_xy_diag_sum]                   # 29
         ])
