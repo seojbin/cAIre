@@ -101,7 +101,7 @@ def extractfeatures(trajectories):
         # [6~8] Clean Range
         feat_ranges = clean_ranges
 
-        # [9] Ratio PCA (No Cutoff)
+        # [9] Ratio PCA
         ratio_pca = vars_resid[1] / (vars_resid[0] + 1e-6)
 
         # [10] Jerk
@@ -199,7 +199,7 @@ def extractfeatures(trajectories):
         else:
             feat_linearity_resid = len_resid / (max_reach_clean + 1e-6)
 
-        # [NEW 25, 26] Start Position Relative to Centroid
+        # [25, 26] Start Position
         feat_start_x_rel = 0.0
         feat_start_y_rel = 0.0
         try:

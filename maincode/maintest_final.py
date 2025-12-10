@@ -119,7 +119,6 @@ def visualize_failed_samples(x_raw, y_true, y_pred, save_dir):
         plt.close()
 
 def run_demo():
-    # 결과 저장 폴더 생성
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     result_dir = os.path.join(script_dir, f"test_results_{timestamp}")
     os.makedirs(result_dir, exist_ok=True)

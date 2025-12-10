@@ -42,11 +42,11 @@ class HybridClassifier:
         self.cho = label['horizontal']
         self.cve = label['vertical']
         
-        # M1: Circle vs Rest (Ratio, Area, Radius Ratio)
+        # M1: Circle vs Rest
         self.select_indices_model1 = [9, 11,17, 19, 20] 
-        # M2: Horizontal vs Rest (Line)
+        # M2: Horizontal vs Rest
         self.select_indices_model2 = [1,2,6, 7, 8, 16, 18]
-        # M3: Vertical vs Complex (Diagonal)
+        # M3: Vertical vs Diagonal
         self.select_indices_model3 = [1,2,6, 7, 8, 16, 18]
         # M4: Diagonal Left vs Right
         self.select_indices_model4 = [14, 15,25,26]
@@ -150,9 +150,6 @@ def visualize_model(model_clf, scaler, select_indices, x_data, y_true, title, la
     ax.view_init(elev=25, azim=135)
     plt.legend()
     plt.show()
-
-
-# --- Execution ---
 modelpath = os.path.join(script_dir, 'mainmodel.joblib')
 newdata = os.path.join(project_root, 'newdata')
 classnames = list(label.keys())
@@ -188,7 +185,6 @@ sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=classnames, ytick
 plt.title('Confusion Matrix')
 plt.show()
 
-# Visualization
 try:
     visualize_model(model.model1, model.scaler1, model.select_indices_model1, xnewfeatures, ytrue, 
                     "Test M1: Circle vs Rest", 
@@ -215,7 +211,7 @@ try:
     if np.sum(m4_mask) > 0:
         visualize_model(model.model4, model.scaler4, model.select_indices_model4, 
                         xnewfeatures[m4_mask], ytrue[m4_mask], 
-                        "Test M4: Diag L vs R (Apex)", 
+                        "Test M4: Diag L vs R",
                         {label['diagonal_left']: 0, label['diagonal_right']: 1}, feature_names)
 
 except Exception as e:

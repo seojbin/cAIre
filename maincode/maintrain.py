@@ -44,12 +44,12 @@ class HybridClassifier:
         self.cho = label['horizontal']
         self.cve = label['vertical']
 
-        # M1: Circle vs Rest (Ratio, Area, Radius Ratio)
+        # M1: Circle vs Rest
         self.select_indices_model1 = [9, 11,17, 19, 20] 
-        # M2: Horizontal vs Rest (Line)
-        self.select_indices_model2 = [1,2,6, 7, 8, 16, 18]
-        # M3: Vertical vs Complex (Diagonal)
-        self.select_indices_model3 = [1,2,6, 7, 8, 16, 18]
+        # M2: Horizontal vs Rest
+        self.select_indices_model2 = [1,2,6, 7, 8, 16, 18, 29]
+        # M3: Vertical vs Diagonal
+        self.select_indices_model3 = [1,2,6, 7, 8, 16, 18, 29]
         # M4: Diagonal Left vs Right
         self.select_indices_model4 = [14, 15,25,26,28]
     def _filter_features(self, x, indices):
@@ -105,7 +105,7 @@ class HybridClassifier:
     def predict(self, x, xorig):
         ypred = np.zeros(len(x), dtype=int)
 
-        # M1: Circle
+        # M1
         x_f1 = self._filter_features(x, self.select_indices_model1)
         p1 = self.model1.predict(self.scaler1.transform(x_f1))
         ypred[p1 == 0] = self.cid
@@ -113,7 +113,7 @@ class HybridClassifier:
         rest_idx = np.where(p1 == 1)[0]
         if len(rest_idx) == 0: return ypred
 
-        # M2: Horizontal
+        # M2
         x_rest = x[rest_idx]
         x_f2 = self._filter_features(x_rest, self.select_indices_model2)
         p2 = self.model2.predict(self.scaler2.transform(x_f2))
@@ -124,7 +124,7 @@ class HybridClassifier:
         rest_idx2 = rest_idx[p2 == 1]
         if len(rest_idx2) == 0: return ypred
 
-        # M3: Vertical
+        # M3
         x_rest2 = x[rest_idx2]
         x_f3 = self._filter_features(x_rest2, self.select_indices_model3)
         p3 = self.model3.predict(self.scaler3.transform(x_f3))
@@ -135,7 +135,7 @@ class HybridClassifier:
         diag_idx = rest_idx2[p3 == 1]
         if len(diag_idx) == 0: return ypred
 
-        # M4: Diagonal L vs R
+        # M4
         x_diag = x[diag_idx]
         x_f4 = self._filter_features(x_diag, self.select_indices_model4)
         p4 = self.model4.predict(self.scaler4.transform(x_f4))
@@ -229,7 +229,7 @@ if __name__ == "__main__":
     true_labels = [classnames[t] for t in ytest]
     
     print("\n")
-    print(f"Test Set Evaluation ({len(xtest)} samples)")
+    print(f"Evaluation ({len(xtest)} samples)")
     for i in range(len(ypred)):
         print(f"Sample {i+1}: Predict={predicted_labels[i]}, True={true_labels[i]}")
     
