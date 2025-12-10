@@ -48,20 +48,14 @@ class Hybrid_SVM_KNN:
         self.diag_group_id = 5 
 
     def fit(self, x, y, xorig):
-        # x 훈련 특성 (xtrain, 2D)
-        # y 훈련 라벨 (ytrain, 1D)
-        # xorig 훈련 궤적 (xtrainorig, 3D 리스트)
         
         print("하이브리드 모델 1 학습")
-        
-        # 1. m1 학습용 라벨
         y_model1 = np.copy(y)
         mask_diag = np.isin(y, [self.cdl, self.cdr])
         y_model1[mask_diag] = self.diag_group_id
         self.model1.fit(x, y_model1)
 
         print("하이브리드 모델 2 학습")
-        # 2. m2 학습 (원본라벨사용)
         xorig_diag = [xorig[i] for i, mask in enumerate(mask_diag) if mask]
         y_diag = y[mask_diag] 
         
