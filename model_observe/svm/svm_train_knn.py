@@ -30,13 +30,13 @@ class Hybrid_SVM_KNN:
     def __init__(self, maxneighbor=3, randomstate=42):
         self.randomstate = randomstate
         
-        # model1: 4-Class (Circle, Diag, H, V) 분류기 (SVM)
+        # m1: 4Class 분류기 (SVM)
         self.model1 = Pipeline([
             ('scaler', StandardScaler()), 
             ('svm', SVC(kernel='rbf', C=1.0, probability=True, random_state=self.randomstate))
         ])
         
-        # model2: Left vs Right (KNN-DTW)
+        # m2: Left vs Right (KNN-DTW)
         self.model2 = KNeighborsTimeSeriesClassifier(n_neighbors=maxneighbor, metric='dtw', weights='distance')
         
         # 라벨 ID 정의
