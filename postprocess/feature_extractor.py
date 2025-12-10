@@ -86,10 +86,10 @@ def extractfeatures(trajectories):
         resid_spread = np.sqrt(vars_resid[1])
 
 
-        # [0~2] IQR
+        # 0~2 IQR
         iqrs = iqr(traj_clean, axis=0, rng=(25, 75))
 
-        # [3~5] Length & Shape Linearity
+        # 3~5 Length & Shape Linearity
         feat_length = ideal_length
         feat_max_reach = max_reach_clean
         
@@ -98,20 +98,20 @@ def extractfeatures(trajectories):
         if reach_shape < 1e-3: reach_shape = np.max(np.linalg.norm(traj_shape - start_point, axis=1))
         feat_linearity_shape = len_path_shape / (reach_shape + 1e-6)
 
-        # [6~8] Clean Range
+        # 6~8 Clean Range
         feat_ranges = clean_ranges
 
-        # [9] Ratio PCA
+        # 9 Ratio PCA
         ratio_pca = vars_resid[1] / (vars_resid[0] + 1e-6)
 
-        # [10] Jerk
+        # 10 Jerk
         vel = np.diff(traj_detail, axis=0)
         acc = np.diff(vel, axis=0)
         jerk = np.diff(acc, axis=0)
         actual_len_raw = np.sum(np.linalg.norm(np.diff(traj_detail, axis=0), axis=1))
         feat_jerk = np.sum(np.linalg.norm(jerk, axis=1)) / (actual_len_raw + 1e-6)
 
-        # [11] XY Area
+        # 11 XY Area
         feat_xy_area = 0.0
         try:
             if len(traj_clean) > 3:
@@ -119,7 +119,7 @@ def extractfeatures(trajectories):
                 feat_xy_area = hull.volume
         except: pass
 
-        # [12, 13] Slope & Corr
+        # 12, 13 Slope & Corr
         feat_slope = 0.0
         feat_corr = 0.0
         try:
@@ -134,12 +134,12 @@ def extractfeatures(trajectories):
                     feat_corr = abs(c)
         except: pass
 
-        # [14~16] Apex Vector
+        # 14~16 Apex Vector
         feat_apex_vec = np.zeros(3)
         if max_reach_clean > 1e-3:
             feat_apex_vec = main_vec / max_reach_clean
 
-        # [17] Radius Ratio
+        # 17 Radius Ratio
         feat_radius_ratio = 0.0
         try:
             centroid = np.mean(traj_clean, axis=0)
@@ -150,15 +150,15 @@ def extractfeatures(trajectories):
                 feat_radius_ratio = r_min / r_max
         except: pass
 
-        # [18] PCA Z
+        # 18 PCA Z
         feat_pca_z = abs(pca_shape.components_[2][2])
 
-        # [19] Helix Thickness
+        # 19 Helix Thickness
         feat_helix_thick = 0.0
         if ideal_length > 1e-6:
             feat_helix_thick = resid_spread / ideal_length
 
-        # [20] Deviation Max
+        # 20 Deviation Max
         feat_dev_max = 0.0
         if max_reach_clean > 1e-3:
             line_unit = main_vec / max_reach_clean
@@ -166,7 +166,7 @@ def extractfeatures(trajectories):
             cross = np.cross(vecs, line_unit)
             feat_dev_max = np.max(np.linalg.norm(cross, axis=1)) / max_reach_clean
 
-        # [21] Turn Angle Sum
+        # 21 Turn Angle Sum
         feat_turn = 0.0
         step = 5
         if len(traj_clean) > 2 * step:
@@ -180,7 +180,7 @@ def extractfeatures(trajectories):
                 c_th = np.clip(dots / (n1[valid] * n2[valid]), -1.0, 1.0)
                 feat_turn = np.sum(np.arccos(c_th))
 
-        # [22, 23] Detail
+        # 22, 23 Detail
         feat_ldlj = 0.0
         feat_dwt = 0.0
         try:
@@ -192,14 +192,14 @@ def extractfeatures(trajectories):
             feat_dwt = np.log(np.sum(np.square(coeffs[1])) + 1e-6)
         except: pass
 
-        # [24] Resid Linearity
+        # 24 Resid Linearity
         len_resid = np.sum(np.linalg.norm(np.diff(traj_clean, axis=0), axis=1))
         if max_reach_clean < total_scale * 0.05:
             feat_linearity_resid = 0.0
         else:
             feat_linearity_resid = len_resid / (max_reach_clean + 1e-6)
 
-        # [25, 26] Start Position
+        # 25, 26 Start Position
         feat_start_x_rel = 0.0
         feat_start_y_rel = 0.0
         try:
@@ -210,9 +210,9 @@ def extractfeatures(trajectories):
                 feat_start_y_rel = diff[1] / max_reach_clean
         except: pass
         
-        # [27] PCA 1 Z
+        # 27 PCA 1 Z
         feat_pca_1_z = abs(pca_shape.components_[0][2])
-        # [28] clockwork azimuth
+        # 28 clockwork azimuth
         feat_delta_azimuth = 0.0
         try:
             theta_start = np.arctan2(start_point[1], start_point[0])
@@ -222,9 +222,8 @@ def extractfeatures(trajectories):
             
             feat_delta_azimuth = np.arctan2(np.sin(diff), np.cos(diff))
         except: pass
-        # [29] xy_diag
+        # 29 xy_diag
         feat_xy_diag_sum = np.sqrt(feat_ranges[0]**2 + feat_ranges[1]**2)
-        # Combine
         features = np.concatenate([
             iqrs,                                    # 0, 1, 2
             [feat_length, feat_max_reach, feat_linearity_shape], # 3, 4, 5

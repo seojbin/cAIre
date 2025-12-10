@@ -5,7 +5,6 @@ import numpy as np
 from tensorflow.keras.preprocessing.sequence import pad_sequences
 import io
 
-# 클래스와 라벨을 매핑
 label = {
     'circle': 0,
     'diagonal_left': 1,
@@ -89,7 +88,7 @@ def load(base):
             print(f"Skipping {path} (Not found)")
             continue
 
-        print(f"Loading {cname}...")
+        print(f"Loading {cname}")
         files = glob.glob(os.path.join(path, "*.txt"))
 
         count = 0
@@ -119,10 +118,10 @@ def augment(traj, strength=1.0, scale_r=(0.9, 1.1)):
 
     # Rotation
     if np.random.rand() > 0.3:
-        # -15도 ~ +15도 회전
+        # -15도 +15도 회전
         theta = np.radians(np.random.uniform(-15, 15))
         c, s = np.cos(theta), np.sin(theta)
-        # Z축 회전 행렬
+        # Z축 회전
         R = np.array(((c, -s, 0), (s, c, 0), (0, 0, 1)))
         newtraj = np.dot(newtraj, R.T)
 
@@ -160,7 +159,7 @@ def augmentdata(origx, origy, n=10):
         augy.append(label)
 
         for _ in range(n):
-            # 노이즈 강도를 약간씩 다르게 줄 수도 있음
+            #노이즈 강도 약간씩 다르게
             newtraj = augment(traj, strength=1.0, scale_r=(0.85, 1.15))
             augx.append(newtraj)
             augy.append(label)
