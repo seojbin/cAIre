@@ -37,7 +37,7 @@ try:
     from postprocess.preprocess import load, label, augmentdata, remove_spikes, smooth_trajectory
     from postprocess.feature_extractor import extractfeatures
 except ImportError:
-    print("Error: Postprocess package not found. 프로젝트 루트에서 실행해주세요.")
+    print("Error: Postprocess package not found")
     exit()
 
 label_dict = label
@@ -81,8 +81,6 @@ def add_noise_for_test(traj, mode, level):
         distortion = steps * (drift_dir * level)
         new_traj += distortion
         
-    return new_traj
-    # 필요한 다른 모드 추가 가능
     return new_traj
 
 class HybridVerifier:
