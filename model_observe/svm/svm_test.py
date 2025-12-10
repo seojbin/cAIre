@@ -20,7 +20,7 @@ except ImportError:
     print("전처리파일(preprocess.py, feature_extractor.py) 없음")
     exit()
 
-model = os.path.join(script_dir, 'svm.joblib') # 불러올 모델
+model = os.path.join(script_dir, 'svm.joblib')
 newdata = os.path.join(project_root, 'newdata')
 
 classnames = list(label.keys())
@@ -31,7 +31,7 @@ except IOError:
     print(f"오류: {model}에 모델 없음.")
     exit()
 
-xnew, ytrue = load(newdata) # 증강 안 함
+xnew, ytrue = load(newdata)
 
 if len(xnew) == 0:
     print("로드안됨")

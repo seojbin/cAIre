@@ -23,7 +23,7 @@ except ImportError:
     print("전처리파일(preprocess.py, feature_extractor.py) 없음")
     exit()
 
-model_filename = 'svm_knn.joblib' # <-- 불러올 파일명 변경
+model_filename = 'svm_knn.joblib'
 model_path = os.path.join(script_dir, model_filename)
 newdata = os.path.join(project_root, 'newdata')
 
@@ -38,7 +38,7 @@ except ImportError:
     print(f"오류: Hybrid_SVM_KNN 클래스를 찾을 수 없습니다.")
     exit()
 
-xnew, ytrue = load(newdata) # 증강 안 함
+xnew, ytrue = load(newdata)
 
 if len(xnew) == 0:
     print("로드안됨")
@@ -48,7 +48,6 @@ xnewfeatures, _ = extractfeatures(xnew)
 
 print(f"총 {len(xnewfeatures)}개 새 데이터 추론")
 
-#predict에 xnewfeatures과 xnew모두 전달
 ypred = model.predict(xnewfeatures, xnew)
 
 print("추론 결과")
@@ -70,7 +69,7 @@ for i in range(len(predicted_labels)):
         try:
             sample_orig_3d = [xnew[i]]
             sample_padded = pad_sequences(sample_orig_3d, padding='post', dtype='float32', value=np.nan)
-            distances, indices = model.model2.kneighbors(sample_padded) # model2로 변경
+            distances, indices = model.model2.kneighbors(sample_padded)
             
             neighbor_indices = indices[0]
             neighbor_labels = [dtw_train_classnames[idx] for idx in neighbor_indices]

@@ -61,8 +61,6 @@ print(f"테스트 데이터 x {xtest.shape}, y {ytest.shape}")
 
 print("SVM 모델 (Pipeline) 학습")
 
-# StandardScaler: 모든 특성의 스케일을 맞춤
-# SVC: 커널 트릭을 사용하는 SVM 모델
 model = Pipeline([
     ('scaler', StandardScaler()),
     ('svm', SVC(kernel='rbf', C=1.0, probability=True, random_state=randomstate))
@@ -85,5 +83,4 @@ print(f"\n테스트 정확도: {accuracy:.4f}")
 print(classification_report(ytest, ypred, target_names=classnames))
 
 print("모델 설명 (SVM 파라미터)")
-# 학습된 모델의 파라미터를 출력
 print(model.named_steps['svm'])
