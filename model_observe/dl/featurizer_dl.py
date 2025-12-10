@@ -4,10 +4,8 @@ import pandas as pd
 from pathlib import Path
 from scipy.signal import resample
 
-# ---------- 기본 유틸 ----------
 
 def parse_xyz_column(xyz_str):
-    # "392/-440/-84" -> [392., -440., -84.]
     x, y, z = xyz_str.split('/')
     return np.array([float(x), float(y), float(z)], dtype=np.float32)
 
@@ -20,7 +18,7 @@ def load_trajectory_file(path, col_idx=6):
             cols = line.strip().split(',')
             xyz = parse_xyz_column(cols[col_idx])
             rows.append(xyz)
-    traj = np.stack(rows, axis=0)   # (T, 3)
+    traj = np.stack(rows, axis=0)
     return traj
 
 def resample_traj(traj, target_len=100):
@@ -43,13 +41,9 @@ def normalize_traj(traj):
     normed = shifted / scale
     return normed
 
-# ---------- 피처 추출 (SVM 피처 철학 재사용) ----------
+#피처 추출
 
 def compute_features(traj):
-    """
-    traj: (T, 3) normalized
-    리턴: 1D feature vector (np.array)
-    """
     x, y, z = traj[:, 0], traj[:, 1], traj[:, 2]
     # 기본 통계
     feats = []
@@ -75,27 +69,22 @@ def compute_features(traj):
     bbox = traj.max(axis=0) - traj.min(axis=0)
     feats += list(bbox.tolist())
 
-    # xy area (투영 면적 근사 – convex hull 대신 간단 grid area)
-    # 간단히: x,y의 표준편차 곱으로 근사 (SVM에서 area가 중요 피처였음) [file:query]
+    # xy area
+    # x,y의 표준편차 곱으로 근사
     xy_area = x.std() * y.std()
     feats.append(xy_area)
 
     return np.array(feats, dtype=np.float32)
 
-# ---------- 폴더 전체 로드 ----------
 
 def load_dataset(root_dir, target_len=100):
-    """
-    root_dir: data 또는 newdata 내부의 상위 디렉토리.
-    폴더 이름이 label이 된다고 가정 (circle, diagonal_left, ...) [file:query]
-    """
     root = Path(root_dir)
     X_list, y_list = [], []
     label_names = sorted([d.name for d in root.iterdir() if d.is_dir()])
 
     for label_idx, lbl in enumerate(label_names):
         for fpath in (root / lbl).glob('*.txt'):
-            # s로 시작하는 정지 데이터는 skip [file:query]
+            # s로 시작하는 정지 데이터는 skip
             if fpath.name.startswith('s'):
                 continue
             traj = load_trajectory_file(fpath)

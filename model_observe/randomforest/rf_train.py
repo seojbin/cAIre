@@ -8,8 +8,6 @@ from sklearn.ensemble import RandomForestClassifier
 import joblib
 import sys
 import os
-
-# 프로젝트 루트 경로 설정 (기존 코드와 동일)
 current = os.path.abspath(__file__)
 script_dir = os.path.dirname(current)
 project_root = os.path.dirname(script_dir)
@@ -71,7 +69,7 @@ if __name__ == "__main__":
     naugment = 9
     xauglist, ytrainaug = augmentdata(xtrainorig, ytrainorig, n=naugment)
 
-    print("\n특성 추출 중...")
+    print("\n특성 추출")
     xtrain_features, feature_names = extractfeatures(xauglist)
     xtest_features, _ = extractfeatures(xtestorig)
 
@@ -90,7 +88,6 @@ if __name__ == "__main__":
     
     classnames = list(label.keys())
     
-    print("\n" + "="*30)
     print(f"Test Set Evaluation ({len(xtest_features)} samples)")
     print(classification_report(ytest, ypred, target_names=classnames, zero_division=0))
     

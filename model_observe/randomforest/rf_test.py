@@ -46,7 +46,7 @@ if __name__ == "__main__":
     true_labels = [classnames[t] for t in ytrue]
 
     print("\n[추론 결과 샘플]")
-    for i in range(min(10, len(ypred))): # 처음 10개만 출력
+    for i in range(min(10, len(ypred))): # 10개만 출력
         print(f"Sample {i + 1}: 예측={predicted_labels[i]}, 실제={true_labels[i]}")
 
     print("\n" + "=" * 30)

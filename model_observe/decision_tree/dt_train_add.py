@@ -31,7 +31,7 @@ class HierarchicalClassifier:
         self.maxdepthdiag = maxdepthdiag
         self.randomstate = randomstate
         
-        # 4개의 내부 모델
+        # 4개모델
         self.model1 = DecisionTreeClassifier(
             max_depth=self.maxdepthmain, random_state=self.randomstate
         )
@@ -58,7 +58,7 @@ class HierarchicalClassifier:
         self.diag_feature_names = ['X_mean', 'X_std', 'X_min', 'X_max', 'diff_X', 'range_X']
     def fit(self, x, y):
         
-        # Main용 라벨 생성: 0=simple, 1=complex
+        # Main용 라벨 0=simple, 1=complex
         ytrain1 = np.where(np.isin(y, self.simplelabels), 0, 1)
 
         # Simple용 데이터/라벨 생성
@@ -67,21 +67,20 @@ class HierarchicalClassifier:
         ytrain2_orig = y[simplemask]
         ytrain2 = np.where(ytrain2_orig == self.cho, 0, 1) # 0=h, 1=v
 
-        # Complex용 데이터/라벨 생성
+        # Complex
         complexmask = (ytrain1 == 1)
         xtrain3 = x[complexmask]
         ytrain3_orig = y[complexmask]
-        # 0=circle, 1=diagonal (L, R 통합)
         ytrain3 = np.where(np.isin(ytrain3_orig, self.diagonallabels), 1, 0)
 
-        # Diagonal L R용 데이터/라벨 생성
+        # Diagonal L R용
         diagonalmask = np.isin(y, self.diagonallabels)
         # X축 특성만 선택
         xtrain4 = x[diagonalmask][:, self.diag_feature_indices]
         ytrain4_orig = y[diagonalmask]
         ytrain4 = np.where(ytrain4_orig == self.cdl, 0, 1)
 
-        # 4개 모델 각각 학습
+        # 4개각각 학습
         self.model1.fit(x, ytrain1)
         self.model2.fit(xtrain2, ytrain2)
         self.model3.fit(xtrain3, ytrain3)
@@ -107,22 +106,18 @@ class HierarchicalClassifier:
         # complex로 예측된 데이터 처리
         xtestcomplex = x[testcomplexmask]
         if xtestcomplex.shape[0] > 0:
-            # circle vs diag
             ypred3 = self.model3.predict(xtestcomplex)
-            
-            # 전체 테스트셋(x)에서 complex로 예측된 인덱스를 찾음
             complex_indices = np.where(testcomplexmask)[0]
 
             # circle/diag 마스크 생성
             mask3circle = (ypred3 == 0)
             mask3diag = (ypred3 == 1)
-            
-            # 'complex' 중 'circle'로 예측된 인덱스
+            #circle
             circle_indices_to_update = complex_indices[mask3circle]
             if len(circle_indices_to_update) > 0:
                 ypred[circle_indices_to_update] = self.cid
             
-            #'complex' 중 'diag'로 예측된 인덱스
+            #diag
             diag_indices_in_subset = complex_indices[mask3diag]
             xtestdiag = xtestcomplex[mask3diag][:, self.diag_feature_indices] # Model 4에 넣을 데이터
 
@@ -133,12 +128,12 @@ class HierarchicalClassifier:
                 mask4left = (ypred4 == 0)
                 mask4right = (ypred4 == 1)
 
-                # 'diag' 중 'left'로 예측된 최종 인덱스
+                # left 인덱스
                 left_indices_to_update = diag_indices_in_subset[mask4left]
                 if len(left_indices_to_update) > 0:
                     ypred[left_indices_to_update] = self.cdl
                 
-                # 'diag' 중 'right'로 예측된 최종 인덱스
+                # right 인덱스
                 right_indices_to_update = diag_indices_in_subset[mask4right]
                 if len(right_indices_to_update) > 0:
                     ypred[right_indices_to_update] = self.cdr
@@ -156,7 +151,7 @@ data = os.path.join(project_root, 'data')
 naugment = 9
 testsize = 0.2
 randomstate = 42
-classnames = list(label.keys()) # ['circle', 'diagonal_left', ...]
+classnames = list(label.keys())
 
 xorig, yorig = load(data)
 

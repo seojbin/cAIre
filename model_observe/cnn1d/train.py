@@ -74,7 +74,7 @@ def augment(traj, strength=1.0, scale_r=(0.9, 1.1), offset_mm=1.0):
     newtraj = traj.copy()
     noise = np.random.normal(loc=0.0, scale=strength, size=newtraj.shape)
     newtraj += noise
-    # 크기 조절·평행이동 생략 (주석 처리)
+    # 크기 조절·평행이동 생략
     return newtraj
 
 def augmentdata(origx, origy, n=10):

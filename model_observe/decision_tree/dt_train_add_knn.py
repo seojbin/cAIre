@@ -48,9 +48,9 @@ class HybridClassifier:
         self.diagonallabels = [self.cdl, self.cdr]
 
     def fit(self, x, y, xorig):
-        # x: 전체 훈련 특성 (xtrain, 2D)
-        # y: 전체 훈련 라벨 (ytrainaug, 1D)
-        # xorig: 전체 훈련 궤적 (xauglist, 3D 리스트)
+        # x 전체 훈련 특성 xtrain, 2D
+        # y 전체 훈련 라벨 ytrainaug, 1D
+        # xorig 전체 훈련 궤적 xauglist, 3D 리스트
         
         # Main용 라벨 생성
         ytrain1 = np.where(np.isin(y, self.simplelabels), 0, 1)
@@ -61,18 +61,18 @@ class HybridClassifier:
         ytrain2_orig = y[simplemask]
         ytrain2 = np.where(ytrain2_orig == self.cho, 0, 1) 
 
-        # Complex용 데이터/라벨 생성
+        # Complex용
         complexmask = (ytrain1 == 1)
         xtrain3 = x[complexmask]
         ytrain3_orig = y[complexmask]
         ytrain3 = np.where(np.isin(ytrain3_orig, self.diagonallabels), 1, 0)
 
-        #Diagonal용 데이터/라벨 생성
+        #Diagonal용
         diagonalmask = np.isin(y, self.diagonallabels)
-        # 특성(x)이 아닌 3D 궤적 원본(xorig)에서 선택
+        # 3D 궤적 원본에서 선택!!
         xtrain4 = [xorig[i] for i in range(len(xorig)) if diagonalmask[i]]
         xtrain4 = pad_sequences(xtrain4, padding='post', dtype='float32', value=np.nan)#패딩
-        ytrain4 = y[diagonalmask] # 0, 1, 2가 아닌 1(DL), 2(DR) 원본 라벨 사용
+        ytrain4 = y[diagonalmask]
 
         # 4개 모델 각각 학습
         self.model1.fit(x, ytrain1)
@@ -81,8 +81,8 @@ class HybridClassifier:
         self.model4.fit(xtrain4, ytrain4)
 
     def predict(self, x, xorig):
-        # x: 테스트 특성 (xtest, 2D)
-        # xorig: 테스트 궤적 (xtestorig, 3D 리스트)
+        # x 테스트 특성 xtest, 2D
+        # xorig 테스트 궤적 xtestorig, 3D
         
         ypred1 = self.model1.predict(x)
         ypred = np.zeros(len(x), dtype=int) 
@@ -99,10 +99,10 @@ class HybridClassifier:
         if xtestcomplex.shape[0] > 0:
             ypred3 = self.model3.predict(xtestcomplex)
             
-            # 전체에서 complex로 예측된 인덱스를 찾음
+            #complex로 예측된 인덱스
             complex_indices = np.where(testcomplexmask)[0]
 
-            # ypred3 결과를 기반으로 마스크 생성
+            # ypred3 결과로 마스크 생성
             mask3circle = (ypred3 == 0)
             mask3diag = (ypred3 == 1)
             
@@ -114,7 +114,7 @@ class HybridClassifier:
             # complex 중 diag로 예측된 인덱스
             diag_indices_in_subset = complex_indices[mask3diag]
             
-            #Model 4 예측 시 3D 궤적 원본 사용
+            #M4 예측 시 3D 궤적 원본 사용
             xtestdiag = [xorig[i] for i in diag_indices_in_subset]
 
             if len(xtestdiag) > 0:
@@ -132,7 +132,7 @@ class HybridClassifier:
         rules1 = export_text(self.model1, feature_names=featurenames, class_names=['simple', 'complex'])
         rules2 = export_text(self.model2, feature_names=featurenames, class_names=['horizontal', 'vertical'])
         rules3 = export_text(self.model3, feature_names=featurenames, class_names=['circle', 'diagonal'])
-        # Model 4는 모델 정보를 반환
+        # M4는 모델 정보 반환
         rules4 = f"KNeighborsTimeSeriesClassifier(n_neighbors={self.model4.n_neighbors}, metric='{self.model4.metric}')"
         return rules1, rules2, rules3, rules4
 

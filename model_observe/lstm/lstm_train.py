@@ -40,7 +40,6 @@ if len(xorig) == 0:
 
 
 print("데이터 분할 (원본 기준)")
-# 원본 데이터를 훈련용/테스트용 분리
 xtrainorig, xtestorig, ytrainorig, ytest = train_test_split(
     xorig, yorig, 
     test_size=testsize, 
@@ -59,14 +58,14 @@ xauglist, ytrain = augmentdata(
 xtestlist = xtestorig
 print(f"증강된 훈련셋: {len(xauglist)}개")
 
-#훈련셋과 테스트셋 패딩
+#패딩
 ntrain = len(xauglist)
 
 allxlist = xauglist + xtestlist
 
 allxpadded = pad(allxlist)
 
-#패딩된 전체 데이터를 다시 분리
+#패딩된 데이터 다시 분리
 xtrain = allxpadded[:ntrain]
 xtest = allxpadded[ntrain:]
 

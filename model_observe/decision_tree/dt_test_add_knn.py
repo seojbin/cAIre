@@ -32,7 +32,7 @@ class HybridClassifier:
         self.model1 = DecisionTreeClassifier(max_depth=maxdepthmain, random_state=self.randomstate)
         self.model2 = DecisionTreeClassifier(max_depth=maxdepthsimple, random_state=self.randomstate)
         self.model3 = DecisionTreeClassifier(max_depth=maxdepthcomplex, random_state=self.randomstate)
-        # n_neighbors=3: 3개와 비교
+        # n_neighbors=3 3개와 비교
         self.model4 = KNeighborsTimeSeriesClassifier(n_neighbors=maxneighbor, metric='dtw')
         
         # 라벨 ID 정의
@@ -50,8 +50,8 @@ class HybridClassifier:
         pass # 추론 시 불필요
 
     def predict(self, x, xorig):
-        # x: 테스트 특성 (xtest, 2D)
-        # xorig: 테스트 궤적 (xtestorig, 3D 리스트)
+        # x: 특성 xtest, 2D
+        # xorig: 궤적 xtestorig, 3D 리스트
         
         ypred1 = self.model1.predict(x)
         ypred = np.zeros(len(x), dtype=int) 
@@ -133,8 +133,7 @@ predicted_labels = [classnames[p] for p in ypred]
 true_labels = [classnames[t] for t in ytrue]
 try:
     dtw_train_internal_labels = model.model4._y 
-    dtw_original_labels_map = model.model4.classes_ 
-    # 올바른 테이블 생성
+    dtw_original_labels_map = model.model4.classes_
     dtw_train_classnames = [classnames[ dtw_original_labels_map[l] ] for l in dtw_train_internal_labels]
 except Exception as e:
     print(f"DTW 설명 라벨 로드 중 오류: {e}")
@@ -143,7 +142,7 @@ except Exception as e:
 for i in range(len(predicted_labels)):
     print(f"샘플 {i+1}: 예측={predicted_labels[i]}, 실제={true_labels[i]}")
 
-    #DTW로 예측된 경우(DL or DR), 왜 그렇게 예측했는지 근거(이웃) 출력
+    #DTW로 예측 - 이웃 출력
     if predicted_labels[i] in ['diagonal_left', 'diagonal_right']:
         try:
             sample_orig_3d = [xnew[i]]

@@ -46,7 +46,7 @@ def main():
 
     paths, labels, label_names = build_raw_dataset(data_root, newdata_root)
     paths = np.array(paths)
-    # train/val split on file-level
+    # train/val split
     train_idx, val_idx = train_test_split(
         np.arange(len(paths)), test_size=0.2,
         stratify=labels, random_state=42

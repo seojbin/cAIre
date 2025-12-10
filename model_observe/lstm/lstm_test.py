@@ -30,14 +30,14 @@ except IOError:
     print(f"{model}에 모델 없음")
     exit()
 
-# 데이터 로드
+# 데이터로드
 xlist, ytrue = load(newdata)
 
 if len(xlist) == 0:
     print("로드안됨")
     exit()
 
-#새로운 데이터를 패딩
+#데이터패딩
 xpadded = pad(xlist)
 
 print(f"총 {len(xpadded)}개의 새 데이터 추론 시작...")

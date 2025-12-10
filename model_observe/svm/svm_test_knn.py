@@ -48,16 +48,15 @@ xnewfeatures, _ = extractfeatures(xnew)
 
 print(f"총 {len(xnewfeatures)}개 새 데이터 추론")
 
-# [중요] predict에 2D 특징(xnewfeatures)과 3D 원본(xnew)을 모두 전달
+#predict에 xnewfeatures과 xnew모두 전달
 ypred = model.predict(xnewfeatures, xnew)
 
 print("추론 결과")
 predicted_labels = [classnames[p] for p in ypred]
 true_labels = [classnames[t] for t in ytrue]
 
-# --- (DTW 근거 출력 로직 - 이전과 동일) ---
 try:
-    dtw_train_internal_labels = model.model2._y # model2로 변경 (이전 model4)
+    dtw_train_internal_labels = model.model2._y # m2로 변경 (이전 model4)
     dtw_original_labels_map = model.model2.classes_ 
     dtw_train_classnames = [classnames[ dtw_original_labels_map[l] ] for l in dtw_train_internal_labels]
 except Exception as e:
@@ -80,7 +79,6 @@ for i in range(len(predicted_labels)):
             
         except Exception as e:
             print(f"  [DTW 설명 중 오류]: {e}")
-# --- (여기까지) ---
 
 if len(ytrue) > 0:
     print(classification_report(ytrue, ypred, target_names=classnames, zero_division=0))

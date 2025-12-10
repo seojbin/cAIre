@@ -43,7 +43,7 @@ for i, folder_path in enumerate(subfolders):
     
     ax = fig.add_subplot(rows, cols, i + 1, projection='3d')
     
-    print(f"Plotting [{folder_name}]...")
+    print(f"Plotting [{folder_name}]")
     
     for file_path in file_list:
         x, y, z = parse_trajectory_file(file_path)

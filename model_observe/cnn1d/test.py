@@ -9,7 +9,6 @@ import pandas as pd
 from tensorflow.keras.preprocessing.sequence import pad_sequences
 import io
 
-# 인라인 전처리 함수 (훈련과 동일 - import 불필요)
 label = {
     'circle': 0,
     'diagonal_left': 1,
@@ -18,7 +17,7 @@ label = {
     'vertical': 4
 }
 index = 6
-fixed_maxlen = 633  # 훈련 시 패딩 길이 (이전 출력 기준; 필요 시 조정)
+fixed_maxlen = 633  # 훈련 시 패딩
 
 def parse(path):
     try:
@@ -76,7 +75,7 @@ print("테스트 전처리 로드 완료")
 try:
     model = load_model(model_path)
     print(f"모델 로드 완료: {model_path}")
-    model.summary()  # 구조 확인 (옵션)
+    model.summary()  # 구조
 except Exception as e:
     print(f"모델 로드 실패: {e}")
     raise
@@ -84,18 +83,12 @@ except Exception as e:
 nclasses = len(label)
 classnames = list(label.keys())
 
-# ===============================
-# 테스트 데이터 로드 & 전처리
-# ===============================
 xlist, ytrue = load(data_test)
 if len(xlist) == 0:
     raise Exception("테스트 데이터 로드 실패")
 
 xpadded = pad_fixed(xlist)  # 고정 maxlen 패딩
 
-# ===============================
-# 예측 실행
-# ===============================
 ypredprobs = model.predict(xpadded)
 ypred = np.argmax(ypredprobs, axis=1)
 
@@ -108,9 +101,6 @@ print("-"*40)
 for i in range(len(predicted_labels)):
     print(f"샘플 {i+1}: 예측={predicted_labels[i]}, 실제={true_labels[i]}")
 
-# ===============================
-# 성능 평가
-# ===============================
 if len(ytrue) > 0:
     print("\n분류 보고서:")
     print(classification_report(ytrue, ypred, target_names=classnames))
@@ -131,10 +121,8 @@ if len(ytrue) > 0:
 else:
     print("테스트 라벨 없음 - 예측만 출력")
 
-# ===============================
-# 단일 샘플 테스트 (옵션: 새 .txt 파일 업로드 후 테스트)
-# ===============================
-# 예: 새 파일 경로 (Data#2에 test_sample.txt 업로드 가정)
+# 단일 샘플 테스트
+# 새 파일 경로 (Data#2에 test_sample.txt)
 # single_path = os.path.join(project_root, 'Data#2/circle/test_sample.txt')
 # single_array = parse(single_path)
 # if single_array is not None:
@@ -144,4 +132,4 @@ else:
 #     print(f"\n단일 샘플 예측: {single_class} (확률: {np.max(single_pred):.2%})")
 
 if __name__ == "__main__":
-    pass  # 위 코드가 자동 실행되도록 (main 로직 위에 있음)
+    pass  # 위 코드가 자동 실행되도록(main 로직 위에 있음)

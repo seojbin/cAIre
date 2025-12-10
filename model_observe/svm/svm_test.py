@@ -20,7 +20,7 @@ except ImportError:
     print("전처리파일(preprocess.py, feature_extractor.py) 없음")
     exit()
 
-model = os.path.join(script_dir, 'svm.joblib') # 불러올 모델 파일명 변경
+model = os.path.join(script_dir, 'svm.joblib') # 불러올 모델
 newdata = os.path.join(project_root, 'newdata')
 
 classnames = list(label.keys())

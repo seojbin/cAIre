@@ -11,7 +11,7 @@ from tensorflow.keras import layers, models, optimizers, callbacks
 from postprocess.featurizer_dl import load_dataset, resample_traj, normalize_traj, compute_features
 from postprocess.augment_dl import compose_augment
 
-# ---------- 데이터 로드 ----------
+# 데이터 로드
 
 def build_feature_dataset(data_root, newdata_root=None, target_len=100,
                           augment_cfg=None, augment_factor=0):
@@ -25,16 +25,14 @@ def build_feature_dataset(data_root, newdata_root=None, target_len=100,
         y = np.concatenate([y, y2], axis=0)
 
     # 원본 궤적 파일 단위 증강 루프를 별도로 돌고 싶으면, traj-level 로더를 따로 두고 사용
-    # 여기서는 예시로 feature space에서 augmentation 없이, 원본 좌표에 augmentation 걸고 다시 피처 추출 [file:query]
+    # 여기서는 feature space에서 augmentation 없이, 원본 좌표에 augmentation 걸고 다시 피처 추출
     if augment_cfg is not None and augment_factor > 0:
-        # 단, 여기에는 raw traj가 없으므로 실제 프로젝트에서는
-        # "load_trajectory_file"을 써서 traj 리스트를 별도로 관리하는 것이 좋음.
-        # 개념적으로는:
+        #여기에는 raw traj가 없으므로 load_trajectory_file을 써서 traj 리스트를 별도로 관리하는 것이 좋음
         pass
 
     return X, y, label_names
 
-# ---------- 모델 정의 ----------
+#모델 정의
 
 def build_mlp(input_dim, num_classes):
     inputs = layers.Input(shape=(input_dim,))
@@ -60,8 +58,8 @@ def build_mlp(input_dim, num_classes):
     return model
 
 def main():
-    data_root = 'data'       # 원본 [file:1]
-    newdata_root = 'newdata' # 노이즈 데이터 [file:query]
+    data_root = 'data'# 원본
+    newdata_root = 'newdata' # 노이즈 데이터
 
     X, y, label_names = build_feature_dataset(data_root, newdata_root)
     print("X shape:", X.shape, "classes:", label_names)
@@ -103,9 +101,9 @@ def main():
     y_val_pred = np.argmax(model.predict(X_val), axis=1)
     print(classification_report(y_val, y_val_pred, target_names=label_names))
 
-    # 모델 / 스케일러 저장(Optional)
+    # 모델 / 스케일러 저장
     model.save('models/mlp_traj.h5')
-    # scaler는 joblib 등으로 저장
+    # scaler는 joblib 등으로
 
 if __name__ == "__main__":
     main()

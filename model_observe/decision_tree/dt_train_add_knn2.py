@@ -52,29 +52,29 @@ class HybridClassifier:
     def _filter_features(self, x):
         return np.delete(x, self.drop_indices_model1, axis=1)
     def fit(self, x, y, xorig):
-        # x: 전체 훈련 특성 (xtrain, 2D)
-        # y: 전체 훈련 라벨 (ytrainaug, 1D)
-        # xorig: 전체 훈련 궤적 (xauglist, 3D)
+        # x 전체 훈련 특성 xtrain, 2D
+        # y 전체 훈련 라벨 ytrainaug, 1D)
+        # xorig 전체 훈련 궤적 xauglist, 3D
         x_filtered = self._filter_features(x)
         self.scaler.fit(x_filtered)
         x_scaled = self.scaler.transform(x_filtered)
         
-        # Main용 라벨 생성
+        # Main용 라벨
         ytrain1 = np.where(np.isin(y, self.simplelabels), 0, 1)
 
-        # Simple용 데이터/라벨 생성
+        # Simple용 데이터/라벨
         simplemask = (ytrain1 == 0)
         xtrain2 = x[simplemask]
         ytrain2_orig = y[simplemask]
         ytrain2 = np.where(ytrain2_orig == self.cho, 0, 1) 
 
-        # Complex용 데이터/라벨 생성
+        # Complex용
         complexmask = (ytrain1 == 1)
         xtrain3 = x[complexmask]
         ytrain3_orig = y[complexmask]
         ytrain3 = np.where(np.isin(ytrain3_orig, self.diagonallabels), 1, 0)
 
-        #Diagonal용 데이터/라벨 생성
+        #Diagonal용
         diagonalmask = np.isin(y, self.diagonallabels)
         xtrain4 = [xorig[i] for i in range(len(xorig)) if diagonalmask[i]]
         xtrain4 = pad_sequences(xtrain4, padding='post', dtype='float32', value=np.nan)
@@ -87,8 +87,6 @@ class HybridClassifier:
         self.model4.fit(xtrain4, ytrain4)
 
     def predict(self, x, xorig):
-        # x: 테스트 특성 (xtest, 2D)
-        # xorig: 테스트 궤적 (xtestorig, 3D)
         x_filtered = self._filter_features(x)#model1에선 ratio, 절대위치 제거!!
         x_scaled = self.scaler.transform(x_filtered)
         

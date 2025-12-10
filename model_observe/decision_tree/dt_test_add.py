@@ -75,25 +75,23 @@ class HierarchicalClassifier:
             ypred2 = self.model2.predict(xtestsimple)
             ypred[testsimplemask] = np.where(ypred2 == 0, self.cho, self.cve)
 
-        # complex로 예측된 데이터 처리
+        # complex 처리
         xtestcomplex = x[testcomplexmask]
         if xtestcomplex.shape[0] > 0:
             # circle vs diag
             ypred3 = self.model3.predict(xtestcomplex)
-            
-            # 전체 테스트셋(x)에서 complex로 예측된 인덱스를 찾음
             complex_indices = np.where(testcomplexmask)[0]
 
             # circle/diag 마스크 생성
             mask3circle = (ypred3 == 0)
             mask3diag = (ypred3 == 1)
             
-            # 'complex' 중 'circle'로 예측된 인덱스
+            # circle 예측
             circle_indices_to_update = complex_indices[mask3circle]
             if len(circle_indices_to_update) > 0:
                 ypred[circle_indices_to_update] = self.cid
             
-            #'complex' 중 'diag'로 예측된 인덱스
+            #complex 중 diag 예측
             diag_indices_in_subset = complex_indices[mask3diag]
             xtestdiag = xtestcomplex[mask3diag][:, self.diag_feature_indices] # Model 4에 넣을 데이터
 
@@ -104,12 +102,12 @@ class HierarchicalClassifier:
                 mask4left = (ypred4 == 0)
                 mask4right = (ypred4 == 1)
 
-                # 'diag' 중 'left'로 예측된 최종 인덱스
+                # left 예측
                 left_indices_to_update = diag_indices_in_subset[mask4left]
                 if len(left_indices_to_update) > 0:
                     ypred[left_indices_to_update] = self.cdl
                 
-                # 'diag' 중 'right'로 예측된 최종 인덱스
+                # right 예측
                 right_indices_to_update = diag_indices_in_subset[mask4right]
                 if len(right_indices_to_update) > 0:
                     ypred[right_indices_to_update] = self.cdr
