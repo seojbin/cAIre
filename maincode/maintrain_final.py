@@ -44,27 +44,27 @@ class HybridClassifier:
         self.cho = label['horizontal']
         self.cve = label['vertical']
 
-        # M1: Circle vs Rest
+        # M1: Circle vs Rest (Ratio, Area, Radius, Helix, DevMax)
         self.select_indices_model1 = [9, 11, 17, 19, 20] 
-        # M2: Horizontal vs Rest
+        # M2: Horizontal vs Rest (Clean Range X/Y/Z, Apex Z, PCA Z)
         self.select_indices_model2 = [1, 2, 6, 7, 8, 16, 18,29]
-        # M3: Vertical vs Diagonal
+        # M3: Vertical vs Diagonal (Same as M2)
         self.select_indices_model3 = [1, 2, 6, 7, 8, 16, 18,29]
-        # M4: Diagonal L vs R
+        # M4: Diagonal L vs R (Apex X/Y, Start Rel X/Y)
         self.select_indices_model4 = [14, 15, 25, 26,28]
 
     def _filter_features(self, x, indices):
         return x[:, indices]
 
     def fit(self, x, y):
-        # M1
+        # M1: Circle(0) vs Others(1)
         x_f1 = self._filter_features(x, self.select_indices_model1)
         self.scaler1.fit(x_f1)
         x_s1 = self.scaler1.transform(x_f1)
         y_m1 = np.where(y == self.cid, 0, 1)
         self.model1.fit(x_s1, y_m1)
 
-        # M2
+        # M2: Horizontal(0) vs Others(1)
         mask_m2 = (y != self.cid)
         if np.sum(mask_m2) > 0:
             x_m2 = x[mask_m2]
@@ -76,7 +76,7 @@ class HybridClassifier:
             y_train2 = np.where(y_m2 == self.cho, 0, 1)
             self.model2.fit(x_s2, y_train2)
 
-            # M3
+            # M3: Vertical(0) vs Diagonals(1)
             mask_m3 = (y_m2 != self.cho)
             if np.sum(mask_m3) > 0:
                 x_m3 = x_m2[mask_m3]
@@ -88,7 +88,7 @@ class HybridClassifier:
                 y_train3 = np.where(y_m3 == self.cve, 0, 1)
                 self.model3.fit(x_s3, y_train3)
 
-                # M4
+                # M4: Left(0) vs Right(1)
                 mask_m4 = (y_m3 != self.cve)
                 if np.sum(mask_m4) > 0:
                     x_m4 = x_m3[mask_m4]
@@ -165,14 +165,15 @@ def visualize_model(model_clf, scaler, select_indices, x_data, y_true, title, la
     else:
         x_vis = np.hstack([x_s, np.zeros((len(x_s), 3 - x_s.shape[1]))])
 
-    preds = model_clf.predict(x_s)
+    preds = model_clf.predict(x_s) # Using internal model predict
     colors = ['blue', 'red']
     inv_label = {v: k for k, v in label.items()}
 
     for cls_label, target_val in label_map.items():
         idxs = np.where(y_true == cls_label)[0]
         if len(idxs) == 0: continue
-
+        
+        # Internal model prediction comparison
         correct_mask = (preds[idxs] == target_val)
         correct = idxs[correct_mask]
         wrong = idxs[~correct_mask]
@@ -193,6 +194,7 @@ def visualize_model(model_clf, scaler, select_indices, x_data, y_true, title, la
     plt.show() 
 
 if __name__ == "__main__":
+    # 1. Load Data (Old + New)
     data_path = os.path.join(project_root, 'data')
     newdata_path = os.path.join(project_root, 'newdata')
     
@@ -209,7 +211,7 @@ if __name__ == "__main__":
         y_total = y_old
         print(f"Loaded {len(x_total)} Samples (Old only)")
 
-    n_aug = 9 # 10
+    n_aug = 9 # Total 10
     print(f"Augmenting Data x{n_aug}")
     x_aug, y_aug = augmentdata(x_total, y_total, n=n_aug)
     
