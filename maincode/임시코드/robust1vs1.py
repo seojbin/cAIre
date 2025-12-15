@@ -242,7 +242,7 @@ def main():
     
     if p_val < 0.05:
         if mean_diff > 0:
-            print("Proposed 모델이 더 우수!")
+            print("Proposed 모델이 우수!")
         else:
             print("Proposed 모델이 나쁨")
     else:
