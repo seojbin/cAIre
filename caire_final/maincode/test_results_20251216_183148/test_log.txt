@@ -1,0 +1,29 @@
+Date: 20251216_183148
+Target Data Path: D:\downloads\caire\caire_final\testdata
+Model File: D:\downloads\caire\caire_final\maincode\mainmodel_final.joblib
+Loaded 20
+Sample 01: 1.txt: circle
+Sample 02: 2.txt: diagonal_left
+Sample 03: 3.txt: horizontal
+Sample 04: 4.txt: vertical
+Sample 05: 5.txt: circle
+Sample 06: 6.txt: diagonal_right
+Sample 07: 7.txt: horizontal
+Sample 08: 8.txt: diagonal_right
+Sample 09: 9.txt: diagonal_left
+Sample 10: 10.txt: horizontal
+Sample 11: 11.txt: vertical
+Sample 12: 12.txt: diagonal_right
+Sample 13: 13.txt: circle
+Sample 14: 14.txt: horizontal
+Sample 15: 15.txt: diagonal_left
+Sample 16: 16.txt: vertical
+Sample 17: 17.txt: diagonal_left
+Sample 18: 18.txt: circle
+Sample 19: 19.txt: diagonal_right
+Sample 20: 20.txt: vertical
+
+[Test M1: Circle vs Rest] Hyperplane: (-0.55*ratio_pca_resid) + (0.35*xy_area_resid) + (-0.34*radius_ratio_resid) + (-0.46*helix_thickness) + (-0.25*deviation_max) + 0.44 = 0
+[Test M2: Horizontal vs Rest] Hyperplane: (-0.17*Y_iqr) + (0.22*Z_iqr) + (-0.20*clean_range_X) + (-0.20*clean_range_Y) + (0.25*clean_range_Z) + (0.30*apex_vec_z) + (-0.20*pca_z_clean) + (-0.22*xy_diag_sum) + 1.16 = 0
+[Test M3: Vertical vs Diagonal] Hyperplane: (0.34*Y_iqr) + (-0.14*Z_iqr) + (0.01*clean_range_X) + (0.40*clean_range_Y) + (-0.25*clean_range_Z) + (-0.32*apex_vec_z) + (0.34*pca_z_clean) + (0.42*xy_diag_sum) + 1.05 = 0
+[Test M4: Diag L vs R] Hyperplane: (-0.00*apex_vec_x) + (-0.39*apex_vec_y) + (-0.13*start_x_rel) + (0.37*start_y_rel) + (-0.46*delta_azimuth) + 0.13 = 0
